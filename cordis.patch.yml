@@ -1,0 +1,7 @@
+# dsh-token-pet bundle patch: inserts the plugin into a profile's layer stack.
+# The single `token-pet` row mounts both halves: browser pet/panel UI plus host
+# snapshot routes, persistent indexes and the background maintenance coordinator.
+# Install locally with: dsh plugin --profile desktop add link:<absolute-path>
+- insert:
+    - id: token-pet
+      name: 'dsh-token-pet'

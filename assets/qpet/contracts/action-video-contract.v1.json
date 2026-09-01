@@ -1,0 +1,183 @@
+{
+  "schemaVersion": 2,
+  "contractId": "qpet-single-form-current-petaction-v2",
+  "status": "all-actions-integrated",
+  "actionCount": 12,
+  "visualDerivation": "disabled",
+  "identityPolicy": {
+    "style": "2D Q版日系游戏精灵，干净描线，柔和赛璐珞上色",
+    "identityReferenceRequired": true,
+    "identity": {
+      "path": "../identity/qpet-stage-01-newborn-v02-resident.png",
+      "sha256": "3df1cea1a9bfdc3ae1c1159e4af6701654caab3cb473d45dba1c6a74e3b3327c",
+      "decision": "creator-approved"
+    },
+    "viewPolicy": "所有动作只使用同一固定正面平面全身身份；不生成压力档位服装、阶段身份、三视图、侧背面或转身。",
+    "pressureBandPolicy": "newborn/growth/active/heavy/overload/critical 仅为运行时压力档位；所有档位复用同一动作资源。"
+  },
+  "matrixPolicy": {
+    "logicalSlots": 12,
+    "formula": "1 fixed identity x 12 current PetAction values",
+    "allowedActionsOnly": [
+      "idle",
+      "working",
+      "eating",
+      "digesting",
+      "warning",
+      "evolve",
+      "click",
+      "archive",
+      "tool-success",
+      "tool-failure",
+      "prompt-enhancing",
+      "prompt-ready"
+    ],
+    "forbidStageQualifiedAssets": true,
+    "forbidUnimplementedActions": true
+  },
+  "sourceFrameGeneration": {
+    "method": "gpt-image-2 via FARSTAR t8star gateway",
+    "referenceImage": "../identity/qpet-stage-01-newborn-v02-resident.png",
+    "background": "pure-magenta #FF00FF flat background for chroma-key transparency",
+    "transparency": "chroma-key removal via scripts/chroma_magenta.py",
+    "camera": "固定正面平视，全身完整可见，脚底基线固定；禁止侧身、转身、背面、绕拍和镜头位移"
+  },
+  "frameDelivery": {
+    "format": "PNG RGBA (transparent)",
+    "alpha": "straight",
+    "naming": "frame-%04d.png",
+    "runtimeSheetLayout": "horizontal-one-row-with-multi-row-wrap",
+    "runtimePath": "../pet/action-sheets/<action>.webp"
+  },
+  "actions": {
+    "idle": {
+      "status": "integrated",
+      "loop": true,
+      "frames": 32,
+      "delaysMs": 100,
+      "totalMs": 3200,
+      "runtime": "../pet/action-sheets/idle.webp",
+      "actionPrompt": "静止待机，轻微呼吸并自然眨眼；运行时约9.6秒循环"
+    },
+    "working": {
+      "status": "integrated",
+      "loop": true,
+      "frames": 32,
+      "delaysMs": 100,
+      "totalMs": 3200,
+      "runtime": "../pet/action-sheets/working.webp",
+      "actionPrompt": "手部小幅操作手势，专注看向前方，空气打字，不手持工具"
+    },
+    "eating": {
+      "status": "integrated",
+      "loop": false,
+      "frames": 32,
+      "delaysMs": 100,
+      "totalMs": 3200,
+      "runtime": "../pet/action-sheets/eating.webp",
+      "actionPrompt": "手抬近嘴边做品尝动作，无实物食物"
+    },
+    "digesting": {
+      "status": "integrated",
+      "loop": false,
+      "frames": 32,
+      "delaysMs": 100,
+      "totalMs": 3200,
+      "runtime": "../pet/action-sheets/digesting.webp",
+      "actionPrompt": "手轻抚腹部，轻柔放松，满足表情"
+    },
+    "warning": {
+      "status": "integrated",
+      "loop": true,
+      "frames": 32,
+      "delaysMs": 100,
+      "totalMs": 3200,
+      "runtime": "../pet/action-sheets/warning.webp",
+      "actionPrompt": "警觉睁大眼睛，抬手做停止手势，轻微摇头"
+    },
+    "evolve": {
+      "status": "integrated",
+      "loop": false,
+      "frames": 32,
+      "delaysMs": 100,
+      "totalMs": 3200,
+      "runtime": "../pet/action-sheets/evolve.webp",
+      "semantic": "celebration-only-no-visual-derivation",
+      "actionPrompt": "双手合拢展开，叶片光点与金绿色光环出现并收束"
+    },
+    "click": {
+      "status": "integrated",
+      "loop": false,
+      "frames": 32,
+      "delaysMs": 100,
+      "totalMs": 3200,
+      "runtime": "../pet/action-sheets/click.webp",
+      "actionPrompt": "眨眼开心挥手，轻松愉悦"
+    },
+    "archive": {
+      "status": "integrated",
+      "loop": false,
+      "frames": 32,
+      "delaysMs": 100,
+      "totalMs": 3200,
+      "runtime": "../pet/action-sheets/archive.webp",
+      "actionPrompt": "手捧卷轴阅读、翻页、收卷，连贯小幅度"
+    },
+    "tool-success": {
+      "status": "integrated",
+      "loop": false,
+      "frames": 32,
+      "delaysMs": 100,
+      "totalMs": 3200,
+      "runtime": "../pet/action-sheets/tool-success.webp",
+      "actionPrompt": "明亮笑容，小幅度庆祝手势"
+    },
+    "tool-failure": {
+      "status": "integrated",
+      "loop": false,
+      "frames": 32,
+      "delaysMs": 100,
+      "totalMs": 3200,
+      "runtime": "../pet/action-sheets/tool-failure.webp",
+      "actionPrompt": "短暂失落后坚定恢复表情"
+    },
+    "prompt-enhancing": {
+      "status": "integrated",
+      "loop": true,
+      "frames": 32,
+      "delaysMs": 100,
+      "totalMs": 3200,
+      "runtime": "../pet/action-sheets/prompt-enhancing.webp",
+      "actionPrompt": "思考、灵光一现、书写、完善、完成，连贯流畅",
+      "pingPong": true
+    },
+    "prompt-ready": {
+      "status": "integrated",
+      "loop": false,
+      "frames": 32,
+      "delaysMs": 100,
+      "totalMs": 3200,
+      "runtime": "../pet/action-sheets/prompt-ready.webp",
+      "actionPrompt": "警觉起身、准备就绪、自信微笑、光芒收束"
+    }
+  },
+  "runtimePolicy": {
+    "legacyProgramAnimations": "disabled",
+    "actionSwitching": "authored frame sheets drive all 12 actions; context pressure bands only tint/glow",
+    "warningVisuals": "subdued saturation, brightness, glow and opacity",
+    "fallback": "fixed identity still frame",
+    "player": "PetActionPlayer handles all 12 actions with fixed two-buffer image strips"
+  },
+  "submissionGate": {
+    "requiredBeforeGeneration": [
+      "使用唯一已采用身份母版",
+      "每个动作先生成一个候选并验收身份/连续性/透明边缘"
+    ],
+    "forbidden": [
+      "按压力档位重复生成动作",
+      "生成阶段服装或派生身份",
+      "扩展当前12动作之外的动作",
+      "未经QC直接接入运行时"
+    ]
+  }
+}

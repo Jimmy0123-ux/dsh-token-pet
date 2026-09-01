@@ -1,0 +1,187 @@
+{
+  "schemaVersion": 1,
+  "id": "dsh.green-sprout-qpet",
+  "name": "Green Sprout QPet",
+  "nameLocalized": {
+    "zh-CN": "绿色小芽 Q版",
+    "en-US": "Green Sprout QPet"
+  },
+  "version": "0.1.0",
+  "author": "DSH Token Pet project",
+  "license": "MIT",
+  "description": {
+    "zh-CN": "单一固定外观的 Token Pet：保留12个通用动作；上下文压力档位仅改变状态标签和轻量警示，不派生身份、服装或阶段动作资源。所有动作帧均由 gpt-image-2 生成、品红背景抠透明处理。",
+    "en-US": "A single-appearance Token Pet with 12 common actions. Context pressure bands affect only status labels and subdued warnings; they never derive identity, outfits, or stage-specific action assets. All action frames are gpt-image-2 generated with chroma-key transparency."
+  },
+  "canvas": {
+    "width": 360,
+    "height": 540
+  },
+  "assets": {
+    "identity": "identity/qpet-stage-01-newborn-v02-resident.png"
+  },
+  "actions": {},
+  "animations": {
+    "idle": {
+      "file": "../pet/action-sheets/idle.webp",
+      "frames": 32,
+      "fps": 10,
+      "loop": true,
+      "delaysMs": 100,
+      "totalMs": 3200
+    },
+    "working": {
+      "file": "../pet/action-sheets/working.webp",
+      "frames": 32,
+      "fps": 10,
+      "loop": true,
+      "delaysMs": 100,
+      "totalMs": 3200
+    },
+    "eating": {
+      "file": "../pet/action-sheets/eating.webp",
+      "frames": 32,
+      "fps": 10,
+      "loop": false,
+      "delaysMs": 100,
+      "totalMs": 3200
+    },
+    "digesting": {
+      "file": "../pet/action-sheets/digesting.webp",
+      "frames": 32,
+      "fps": 10,
+      "loop": false,
+      "delaysMs": 100,
+      "totalMs": 3200
+    },
+    "warning": {
+      "file": "../pet/action-sheets/warning.webp",
+      "frames": 32,
+      "fps": 10,
+      "loop": true,
+      "delaysMs": 100,
+      "totalMs": 3200
+    },
+    "evolve": {
+      "file": "../pet/action-sheets/evolve.webp",
+      "frames": 32,
+      "fps": 10,
+      "loop": false,
+      "delaysMs": 100,
+      "totalMs": 3200
+    },
+    "click": {
+      "file": "../pet/action-sheets/click.webp",
+      "frames": 32,
+      "fps": 10,
+      "loop": false,
+      "delaysMs": 100,
+      "totalMs": 3200
+    },
+    "archive": {
+      "file": "../pet/action-sheets/archive.webp",
+      "frames": 32,
+      "fps": 10,
+      "loop": false,
+      "delaysMs": 100,
+      "totalMs": 3200
+    },
+    "tool-success": {
+      "file": "../pet/action-sheets/tool-success.webp",
+      "frames": 32,
+      "fps": 10,
+      "loop": false,
+      "delaysMs": 100,
+      "totalMs": 3200
+    },
+    "tool-failure": {
+      "file": "../pet/action-sheets/tool-failure.webp",
+      "frames": 32,
+      "fps": 10,
+      "loop": false,
+      "delaysMs": 100,
+      "totalMs": 3200
+    },
+    "prompt-enhancing": {
+      "file": "../pet/action-sheets/prompt-enhancing.webp",
+      "frames": 32,
+      "fps": 10,
+      "loop": true,
+      "delaysMs": 100,
+      "totalMs": 3200
+    },
+    "prompt-ready": {
+      "file": "../pet/action-sheets/prompt-ready.webp",
+      "frames": 32,
+      "fps": 10,
+      "loop": false,
+      "delaysMs": 100,
+      "totalMs": 3200
+    }
+  },
+  "x-production": {
+    "status": "single-form-all-actions-integrated",
+    "actionContract": "contracts/action-video-contract.v1.json",
+    "runtimeSheetLayout": "horizontal-one-row-with-multi-row-wrap",
+    "logicalSlotCount": 12,
+    "visualDerivation": "disabled",
+    "identityAsset": {
+      "path": "identity/qpet-stage-01-newborn-v02-resident.png",
+      "sha256": "3df1cea1a9bfdc3ae1c1159e4af6701654caab3cb473d45dba1c6a74e3b3327c",
+      "decision": "creator-approved"
+    },
+    "pressureBands": [
+      "newborn",
+      "growth",
+      "active",
+      "heavy",
+      "overload",
+      "critical"
+    ],
+    "pressureBandPolicy": "Internal pressure/status bands only. All bands use the same identity and common action assets.",
+    "plannedActions": [
+      "idle",
+      "working",
+      "eating",
+      "digesting",
+      "warning",
+      "evolve",
+      "click",
+      "archive",
+      "tool-success",
+      "tool-failure",
+      "prompt-enhancing",
+      "prompt-ready"
+    ],
+    "completedActions": [
+      "idle",
+      "working",
+      "eating",
+      "digesting",
+      "warning",
+      "evolve",
+      "click",
+      "archive",
+      "tool-success",
+      "tool-failure",
+      "prompt-enhancing",
+      "prompt-ready"
+    ],
+    "remainingActions": [],
+    "actionSheets": {
+      "source": "gpt-image-2 via FARSTAR t8star gateway, chroma-key transparent",
+      "layout": "horizontal-one-row (multi-row wrap for wide effects)",
+      "canvas": {
+        "width": 360,
+        "height": 540
+      },
+      "bodyHeight": 480,
+      "idleFrameCount": 32,
+      "actionFrameCount": {
+        "all": 32
+      },
+      "note": "All 12 actions use gpt-image-2 generated frames with magenta background + chroma-key. PetActionPlayer renders the real WebP strip as an HTML img and steps it with GPU translate3d (no canvas resampling). Every action plays all 32 cut frames at 100ms per frame (10fps). Strips are 1.5x resolution (idle cell 360x540, body 480); each action uses one fixed bottom-body anchor so arm/effect changes never translate the whole frame. prompt-enhancing uses ping-pong looping to avoid a 31->0 seam."
+    },
+    "note": "One fixed identity and 12 common actions; pressure bands never change identity or action assets."
+  }
+}

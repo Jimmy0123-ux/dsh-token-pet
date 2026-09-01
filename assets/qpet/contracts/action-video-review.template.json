@@ -1,0 +1,42 @@
+{
+  "$schema": "./action-review-record.schema.v2.json",
+  "schemaVersion": 2,
+  "recordStatus": "draft-template",
+  "action": "idle",
+  "pressureBandIndependent": true,
+  "form": "qpet",
+  "model": "REPLACE-WITH-REQUEST-MODEL",
+  "jobId": "REPLACE-WITH-REQUEST-JOB-ID",
+  "seed": 0,
+  "finalPrompt": "COPY-EXACT-FINAL-PROMPT-FROM-THE-REQUEST-RECORD",
+  "negativePrompt": "COPY-EXACT-NEGATIVE-PROMPT-FROM-THE-REQUEST-RECORD",
+  "references": [
+    {
+      "role": "identity",
+      "path": "../identity/qpet-stage-01-newborn-v02-resident.png",
+      "sha256": "3df1cea1a9bfdc3ae1c1159e4af6701654caab3cb473d45dba1c6a74e3b3327c"
+    }
+  ],
+  "sourceVideo": {
+    "path": "../videos/<action>/qpet-<action>-v01-source.mp4",
+    "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+  },
+  "actualFPS": 0,
+  "acceptedFrames": 0,
+  "qcResults": {
+    "decodable": null,
+    "durationAndDimensionsMatch": null,
+    "noAudio": null,
+    "identityPass": null,
+    "frontViewPass": null,
+    "propCleanupPass": null,
+    "loopOrReturnToIdlePass": null,
+    "noTextLogoWatermarkUiPass": null,
+    "notes": [
+      "Template only: replace zero values after inspecting the physical video."
+    ]
+  },
+  "decision": "pending",
+  "reviewer": "UNASSIGNED",
+  "createdAt": "1970-01-01T00:00:00Z"
+}

@@ -1,0 +1,22 @@
+{
+  "$schema": "./action-request-record.schema.v2.json",
+  "schemaVersion": 2,
+  "recordStatus": "draft-template",
+  "action": "idle",
+  "pressureBandIndependent": true,
+  "form": "qpet",
+  "gateway": "REPLACE-WITH-CONFIRMED-GATEWAY",
+  "model": "REPLACE-WITH-CONFIRMED-MODEL",
+  "jobId": "PENDING-REPLACE-AFTER-SUBMISSION",
+  "seed": 0,
+  "finalPrompt": "REPLACE-WITH-FROZEN-FINAL-PROMPT-SENT-TO-THE-GATEWAY",
+  "negativePrompt": "REPLACE-WITH-FROZEN-NEGATIVE-PROMPT-SENT-TO-THE-GATEWAY",
+  "references": [
+    {
+      "role": "identity",
+      "path": "../identity/qpet-stage-01-newborn-v02-resident.png",
+      "sha256": "3df1cea1a9bfdc3ae1c1159e4af6701654caab3cb473d45dba1c6a74e3b3327c"
+    }
+  ],
+  "createdAt": "1970-01-01T00:00:00Z"
+}

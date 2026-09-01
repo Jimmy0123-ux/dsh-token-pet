@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "action-request-record.schema.v2.json",
+  "title": "Token Pet single-form action request record v2",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "recordStatus", "action", "pressureBandIndependent", "form", "gateway", "model", "jobId", "seed", "finalPrompt", "negativePrompt", "references", "createdAt"],
+  "properties": {
+    "$schema": {"type":"string"},
+    "schemaVersion": {"const":2},
+    "recordStatus": {"enum":["draft-template","draft","submitted","completed","failed"]},
+    "action": {"enum":["idle","working","eating","digesting","warning","evolve","click","archive","tool-success","tool-failure","prompt-enhancing","prompt-ready"]},
+    "pressureBandIndependent": {"const":true},
+    "form": {"const":"qpet"},
+    "gateway": {"type":"string","minLength":1},
+    "model": {"type":"string","minLength":1},
+    "jobId": {"type":"string","minLength":1},
+    "seed": {"oneOf":[{"type":"integer","minimum":0},{"type":"string","minLength":1}]},
+    "finalPrompt": {"type":"string","minLength":1},
+    "negativePrompt": {"type":"string","minLength":1},
+    "references": {
+      "type":"array","minItems":1,
+      "items":{"type":"object","additionalProperties":false,"required":["role","path","sha256"],"properties":{"role":{"enum":["identity","action-start-state","prop"]},"path":{"type":"string","minLength":1},"sha256":{"type":"string","pattern":"^[0-9a-f]{64}$"}}},
+      "contains":{"type":"object","required":["role"],"properties":{"role":{"const":"identity"}}},"minContains":1,"maxContains":1
+    },
+    "createdAt": {"type":"string","format":"date-time"}
+  }
+}

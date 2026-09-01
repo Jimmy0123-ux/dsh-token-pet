@@ -1,0 +1,49 @@
+# Dependencies
+node_modules/
+
+# Local production/review workspace (large videos, ZIPs, source frames, QA logs)
+Review/
+.agent-teams/
+null
+*.tgz
+
+# Python caches
+__pycache__/
+*.py[cod]
+
+# Build output
+lib/
+client/client.js
+client/client.js.map
+*.tsbuildinfo
+
+# Deprecated local artifacts (not part of the public runtime)
+assets/qpet/archive/
+assets/pet/qpet-*.png
+src/client/pet-idle-sheet.generated.ts
+
+# Coverage and test artifacts
+coverage/
+.nyc_output/
+
+# Local environment and secrets
+.env
+.env.*
+!.env.example
+*.local
+*.secret
+*.pem
+*.key
+
+# OS/editor files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Logs and temporary files
+*.log
+tmp/
+temp/
