@@ -1,5 +1,9 @@
 # DSH Token Pet · 用量小宠物
 
+[![npm version](https://img.shields.io/npm/v/dsh-token-pet.svg)](https://www.npmjs.com/package/dsh-token-pet)
+[![CI](https://github.com/Jimmy0123-ux/dsh-token-pet/actions/workflows/ci.yml/badge.svg)](https://github.com/Jimmy0123-ux/dsh-token-pet/actions/workflows/ci.yml)
+[![license](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+
 > DeepSeek Harness Desktop 的桌面宠物与 Token / 上下文可视化插件。
 
 DSH Token Pet 将 DSH 当前会话、上下文窗口、工具调用、压缩流程和终身 Token 用量转化为一个常驻桌面的 Q 版角色。宠物会根据真实运行事件播放动作；浮窗提供上下文、模型、趋势和 Lifetime Ledger 等统计信息。
@@ -104,27 +108,23 @@ npm run build
 dsh plugin --profile desktop add link:<本项目绝对路径>
 ```
 
-### 从 GitHub 直接安装
-
-```powershell
-dsh plugin --profile desktop add github:Jimmy0123-ux/dsh-token-pet
-```
-
 ### 从 npm 安装
 
 ```powershell
 dsh plugin --profile desktop add dsh-token-pet
 ```
 
-### tgz 离线分享
+### GitHub Release / tgz 安装
 
 ```powershell
-npm run build
-npm pack
+# 直接安装公开Release
+dsh plugin --profile desktop add https://github.com/Jimmy0123-ux/dsh-token-pet/releases/download/v0.1.0/dsh-token-pet-0.1.0.tgz
+
+# 或安装已下载的本地文件
 dsh plugin --profile desktop add C:\path\to\dsh-token-pet-0.1.0.tgz
 ```
 
-宿主代码或客户端代码更新后建议完整重启 DSH Desktop。公开发布版支持 GitHub、tgz 和 npm 安装。
+宿主代码或客户端代码更新后建议完整重启 DSH Desktop。推荐使用 npm；开发调试使用源码 link。
 
 ## 开发与验证
 
