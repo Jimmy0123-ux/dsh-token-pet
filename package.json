@@ -31,7 +31,8 @@
     "smoke:runtime": "node scripts/runtime-smoke.mjs",
     "audit:qpet-art": "node scripts/qpet-asset-audit.mjs",
     "prepare": "npm run build",
-    "prepublishOnly": "npm run typecheck && npm test && npm run audit:qpet-art && npm run build"
+    "prepublishOnly": "npm run typecheck && npm test && npm run audit:qpet-art && npm run build",
+    "verify:published": "node scripts/verify-published-package.mjs"
   },
   "keywords": [
     "deepseek",
