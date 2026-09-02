@@ -99,51 +99,55 @@ DSH Token Pet 将当前请求、工具调用、上下文压缩、会话归档和
 | `prompt-enhancing` | 提示生成中 | 提示词增强请求执行中 | <img src="docs/media/action-prompt-enhancing.webp" width="120" alt="prompt-enhancing"> |
 | `prompt-ready` | 提示已就绪 | 增强结果返回 | <img src="docs/media/action-prompt-ready.webp" width="120" alt="prompt-ready"> |
 
-## 安装与分享
+## 安装
 
-> 重要：这是一个 **Web 界面插件**。它必须安装到“会加载 DSH Web UI 宿主（`@deepseek-ai/dsh-web-app`）”的 profile 里才能显示宠物。
-> 如果你装进没有 Web UI 的 profile（例如精简/无界面 profile），DSH 会提示“该 profile 缺 WebUI 组件、启动看不到界面”。此时请改用下面的正确目标 profile 重新安装。
+> 重要：这是一个 **Web 界面插件**，必须在 DSH 的 Web 界面里才能显示宠物。你只需要把它装到正在运行的 DSH 网页版/桌面版即可，**不需要额外执行 `dsh web`**。
 
-### 网页版（dsh web）
+### 方式一：在 DSH Web 界面内直接安装（推荐给普通用户）
 
-网页版使用 `web` profile，它默认加载 `dsh-base` + `dsh-web-app`，可直接安装：
+如果你已经打开 DSH 的网页版或桌面版：
+
+1. 打开 **设置 → 插件市场 / 插件管理**；
+2. 搜索 `dsh-token-pet`；
+3. 点击安装；
+4. 重启 DSH（或刷新 Web 页面）。
+
+不需要执行任何命令行，也不需要 `dsh web`。
+
+### 方式二：命令行安装（开发者 / 命令行用户）
+
+仅当你是用命令行从零启动 DSH 时才需要：
 
 ```powershell
+# 网页版：先装，再启动
 dsh plugin --profile web add dsh-token-pet
 dsh web
 ```
 
-### DSH Desktop（桌面版）
-
-桌面版管理的是 `desktop` profile（同样包含 Web UI 宿主）：
-
 ```powershell
+# DSH Desktop 桌面版
 dsh plugin --profile desktop add dsh-token-pet
 ```
 
-也可以直接在 DSH Desktop 的插件市场中一键安装。
+桌面版安装后重启桌面应用即可，不需要 `dsh web`。
 
-### 本机源码 link 安装
+### 从 npm / 源码 / tgz 安装（命令行）
 
 ```powershell
+# npm
+dsh plugin --profile web add dsh-token-pet        # 网页版
+dsh plugin --profile desktop add dsh-token-pet    # 桌面版
+
+# 源码 link
 git clone https://github.com/Jimmy0123-ux/dsh-token-pet.git
 Set-Location dsh-token-pet
 npm install
 npm run build
+dsh plugin --profile web add link:<本项目绝对路径>      # 网页版
+dsh plugin --profile desktop add link:<本项目绝对路径>  # 桌面版
 
-# 网页版
-dsh plugin --profile web add link:<本项目绝对路径>
-# 桌面版
-dsh plugin --profile desktop add link:<本项目绝对路径>
-```
-
-### 从 npm 安装
-
-```powershell
-# 网页版
-dsh plugin --profile web add dsh-token-pet
-# 桌面版
-dsh plugin --profile desktop add dsh-token-pet
+# 或已下载的 tgz
+dsh plugin --profile web add C:\path\to\dsh-token-pet-0.1.1.tgz
 ```
 
 安装后需要重启对应 DSH（或刷新 Web 页面），宿主与客户端更新才会生效。
@@ -167,16 +171,6 @@ dsh plugin --profile desktop add dsh-token-pet
    ```
 
 4. 完成后重启 DSH，再刷新页面。
-
-### GitHub Release / tgz 安装
-
-```powershell
-# 直接安装公开Release
-dsh plugin --profile desktop add https://github.com/Jimmy0123-ux/dsh-token-pet/releases/download/v0.1.0/dsh-token-pet-0.1.0.tgz
-
-# 或安装已下载的本地文件
-dsh plugin --profile desktop add C:\path\to\dsh-token-pet-0.1.0.tgz
-```
 
 宿主代码或客户端代码更新后建议完整重启对应 DSH。推荐使用 npm；开发调试使用源码 link。
 
