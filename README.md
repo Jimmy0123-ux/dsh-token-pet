@@ -101,6 +101,28 @@ DSH Token Pet 将当前请求、工具调用、上下文压缩、会话归档和
 
 ## 安装与分享
 
+> 重要：这是一个 **Web 界面插件**。它必须安装到“会加载 DSH Web UI 宿主（`@deepseek-ai/dsh-web-app`）”的 profile 里才能显示宠物。
+> 如果你装进没有 Web UI 的 profile（例如精简/无界面 profile），DSH 会提示“该 profile 缺 WebUI 组件、启动看不到界面”。此时请改用下面的正确目标 profile 重新安装。
+
+### 网页版（dsh web）
+
+网页版使用 `web` profile，它默认加载 `dsh-base` + `dsh-web-app`，可直接安装：
+
+```powershell
+dsh plugin --profile web add dsh-token-pet
+dsh web
+```
+
+### DSH Desktop（桌面版）
+
+桌面版管理的是 `desktop` profile（同样包含 Web UI 宿主）：
+
+```powershell
+dsh plugin --profile desktop add dsh-token-pet
+```
+
+也可以直接在 DSH Desktop 的插件市场中一键安装。
+
 ### 本机源码 link 安装
 
 ```powershell
@@ -109,14 +131,42 @@ Set-Location dsh-token-pet
 npm install
 npm run build
 
+# 网页版
+dsh plugin --profile web add link:<本项目绝对路径>
+# 桌面版
 dsh plugin --profile desktop add link:<本项目绝对路径>
 ```
 
 ### 从 npm 安装
 
 ```powershell
+# 网页版
+dsh plugin --profile web add dsh-token-pet
+# 桌面版
 dsh plugin --profile desktop add dsh-token-pet
 ```
+
+安装后需要重启对应 DSH（或刷新 Web 页面），宿主与客户端更新才会生效。
+
+## 常见问题：提示“缺 WebUI 组件，启动看不到界面”
+
+这条提示表示插件被安装到了一个没有 Web UI 宿主（`@deepseek-ai/dsh-web-app`）的 profile。请检查：
+
+1. 确认目标 profile 是 `web`（网页版）或 `desktop`（桌面版）；
+2. 用以下命令确认 profile 组合里包含 Web UI 宿主：
+
+   ```powershell
+   dsh --profile <name> --dump-config
+   ```
+
+3. 如果在错误的 profile 中安装过，先移除再装到正确 profile：
+
+   ```powershell
+   dsh plugin --profile <错误profile> remove dsh-token-pet
+   dsh plugin --profile web add dsh-token-pet
+   ```
+
+4. 完成后重启 DSH，再刷新页面。
 
 ### GitHub Release / tgz 安装
 
@@ -128,7 +178,7 @@ dsh plugin --profile desktop add https://github.com/Jimmy0123-ux/dsh-token-pet/r
 dsh plugin --profile desktop add C:\path\to\dsh-token-pet-0.1.0.tgz
 ```
 
-宿主代码或客户端代码更新后建议完整重启 DSH Desktop。推荐使用 npm；开发调试使用源码 link。
+宿主代码或客户端代码更新后建议完整重启对应 DSH。推荐使用 npm；开发调试使用源码 link。
 
 ## 开发与验证
 
