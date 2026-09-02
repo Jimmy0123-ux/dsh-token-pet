@@ -10,6 +10,13 @@ All notable changes to this project are documented here. The format follows [Kee
 - Add browser-level visual regression coverage for animation hand-offs.
 - Record a 24-hour renderer/main-process memory and latency run.
 
+## [0.1.1] - 2026-09-01
+
+### Changed
+
+- Documentation-only release: README now explains that dsh-token-pet is a Web UI plugin and must be installed into a profile that loads `@deepseek-ai/dsh-web-app` (the `web` profile for dsh web, or the `desktop` profile for DSH Desktop).
+- Added install commands for the web profile and a troubleshooting section for the "profile lacks WebUI components / UI does not appear" message.
+
 ## [0.1.0] - 2026-09-01
 
 ### Added
@@ -45,5 +52,6 @@ All notable changes to this project are documented here. The format follows [Kee
 - npm package installs with host entry, web client bundle, and `cordis.patch.yml` present.
 - GitHub CI passes on the public `main` branch.
 
-[Unreleased]: https://github.com/Jimmy0123-ux/dsh-token-pet/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/Jimmy0123-ux/dsh-token-pet/compare/v0.1.1...HEAD
+[0.1.1]: https://github.com/Jimmy0123-ux/dsh-token-pet/releases/tag/v0.1.1
 [0.1.0]: https://github.com/Jimmy0123-ux/dsh-token-pet/releases/tag/v0.1.0
