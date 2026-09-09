@@ -10,13 +10,17 @@
 import { createElement as h, memo, useEffect, useState, type CSSProperties } from 'react'
 
 import { css, type PetStage } from './derive.ts'
-import { PET_ACTION_STATUS_LABELS, type PetAction } from './events.ts'
+import { petActionStatusLabel, type PetAction } from './events.ts'
+import { defineMessages, translate, type Language } from './i18n.ts'
 import { resolveStyleOverride, type SkinManifest } from './skin.ts'
 import { FORMAL_PET_ASSET } from './pet-asset.generated.ts'
 import { PET_ACTION_SHEET_SPECS, type ActionSheetSpec } from './pet-action-sheets.generated.ts'
 import { PetActionPlayer } from './pet-action-player.tsx'
 
+const PET_MESSAGES = defineMessages({ status: { zh: '当前状态：{status}', en: 'Current status: {status}' }, name: { zh: '用量小宠物，{status}', en: 'Token Pet, {status}' } })
+
 export interface PetProps {
+  language?: Language
   /** Internal pressure band; never selects a different visual identity. */
   stage: PetStage
   /** Satiation 0..1 (cumulative tokens normalised) — drives a little belly bar. */
@@ -99,7 +103,7 @@ function stageMetaWithSkin(stage: PetStage, skin?: SkinManifest): (typeof STAGE_
  * Main pet silhouette. `progress` drives the outer ring arc; `satiation` the
  * internal fill; `toolCalls`/`toolShare` the badge stack.
  */
-function SvgPetFallback(p: PetProps) {
+export function SvgPetFallback(p: PetProps) {
   const meta = stageMetaWithSkin(p.stage, p.skin)
   const size = p.size ?? 120
   const R = 40
@@ -142,6 +146,7 @@ function SvgPetFallback(p: PetProps) {
     width: size,
     height: size * (80 / 72),
     role: 'img',
+    'aria-label': translate(p.language ?? 'zh', PET_MESSAGES, 'name', { status: petActionStatusLabel(p.statusAction ?? p.action ?? 'idle', p.language ?? 'zh') }),
     style: css({ overflow: 'visible', animation: 'none' }),
   }, [
     // Glow behind the creature at active+ stages.
@@ -198,13 +203,14 @@ const ACTION_STATUS_COLORS: Readonly<Record<PetAction, string>> = {
   'prompt-ready': '#43a96f',
 }
 
-function formalActionDecoration(action: PetAction, color: string) {
+function formalActionDecoration(action: PetAction, color: string, language: Language) {
+  const label = petActionStatusLabel(action, language)
   const bubble: CSSProperties = {
     position: 'absolute', top: '17%', left: '-8%', display: 'grid', placeItems: 'center', width: 26, height: 26,
     borderRadius: '50%', color: '#fff', background: color, border: '2px solid rgba(255,255,255,.9)',
     boxShadow: `0 3px 12px ${color}`, fontWeight: 900, fontSize: 15,
   }
-  if (action === 'working') return h('div', { key: 'action', 'aria-label': '工作中', style: css({
+  if (action === 'working') return h('div', { key: 'action', 'aria-label': label, style: css({
     position: 'absolute', left: '20%', right: '20%', bottom: '11%', height: '23%', borderRadius: '7px 7px 3px 3px',
     border: '2px solid #45617b', background: 'linear-gradient(145deg,#dff4ff,#8ccbe9)', boxShadow: '0 5px 10px rgba(0,0,0,.25)',
     transformOrigin: '50% 100%',
@@ -213,24 +219,24 @@ function formalActionDecoration(action: PetAction, color: string) {
     h('span', { key: 'line1', style: css({ position: 'absolute', left: '27%', top: '34%', width: '28%', height: 2, background: '#7fe6c4' }) }),
     h('span', { key: 'line2', style: css({ position: 'absolute', left: '35%', top: '46%', width: '34%', height: 2, background: '#91a7ff' }) }),
   ])
-  if (action === 'eating') return h('span', { key: 'action', 'aria-label': '正在吃 Token', style: css({
+  if (action === 'eating') return h('span', { key: 'action', 'aria-label': label, style: css({
     ...bubble, left: 'auto', right: '-10%', background: '#ffcf67', color: '#6c4210',
   }) }, 'T')
-  if (action === 'digesting') return h('span', { key: 'action', 'aria-label': '正在消化', style: css({
+  if (action === 'digesting') return h('span', { key: 'action', 'aria-label': label, style: css({
     position: 'absolute', left: '29%', right: '29%', bottom: '20%', aspectRatio: '1', borderRadius: '50%',
     border: `3px dashed ${color}`, boxShadow: `0 0 14px ${color}`,
   }) })
-  if (action === 'warning' || action === 'tool-failure') return h('span', { key: 'action', 'aria-label': '警告', style: css({ ...bubble, background: 'rgba(190,85,91,.82)', boxShadow: '0 2px 7px rgba(145,55,60,.18)' }) }, '!')
-  if (action === 'tool-success' || action === 'prompt-ready') return h('span', { key: 'action', 'aria-label': '完成', style: css({ ...bubble, background: '#43b875' }) }, '✓')
-  if (action === 'click') return h('span', { key: 'action', 'aria-label': '开心', style: css({ ...bubble, background: '#ef78a8' }) }, '♥')
-  if (action === 'evolve') return h('span', { key: 'action', 'aria-label': '成长', style: css({
+  if (action === 'warning' || action === 'tool-failure') return h('span', { key: 'action', 'aria-label': label, style: css({ ...bubble, background: 'rgba(190,85,91,.82)', boxShadow: '0 2px 7px rgba(145,55,60,.18)' }) }, '!')
+  if (action === 'tool-success' || action === 'prompt-ready') return h('span', { key: 'action', 'aria-label': label, style: css({ ...bubble, background: '#43b875' }) }, '✓')
+  if (action === 'click') return h('span', { key: 'action', 'aria-label': label, style: css({ ...bubble, background: '#ef78a8' }) }, '♥')
+  if (action === 'evolve') return h('span', { key: 'action', 'aria-label': label, style: css({
     position: 'absolute', inset: '8% -8% 5%', borderRadius: '50%', border: '3px solid #ffd76d',
     boxShadow: '0 0 24px #ffd76d, inset 0 0 20px rgba(255,215,109,.55)',
   }) })
-  if (action === 'prompt-enhancing') return h('span', { key: 'action', 'aria-label': '正在增强提示词', style: css({
+  if (action === 'prompt-enhancing') return h('span', { key: 'action', 'aria-label': label, style: css({
     ...bubble, background: '#8069d9',
   }) }, '✦')
-  if (action === 'archive') return h('span', { key: 'action', 'aria-label': '已归档', style: css({ ...bubble, background: '#70768c' }) }, '↓')
+  if (action === 'archive') return h('span', { key: 'action', 'aria-label': label, style: css({ ...bubble, background: '#70768c' }) }, '↓')
   return null
 }
 
@@ -249,7 +255,8 @@ export const PetSprite = memo(function PetSprite(p: PetProps) {
   const [stripError, setStripError] = useState<string | null>(null)
   const action = p.action ?? 'idle'
   const statusAction = p.statusAction ?? action
-  const statusLabel = PET_ACTION_STATUS_LABELS[statusAction]
+  const language = p.language ?? 'zh'
+  const statusLabel = petActionStatusLabel(statusAction, language)
   const statusColor = ACTION_STATUS_COLORS[statusAction]
   // A failed strip fetch (host route not yet live, host down) falls back to the
   // static identity artwork; retry after a delay so the pet self-heals once the
@@ -288,7 +295,7 @@ export const PetSprite = memo(function PetSprite(p: PetProps) {
 
   return h('div', {
     role: 'img',
-    'aria-label': `Token Pet，${statusLabel}`,
+    'aria-label': translate(language, PET_MESSAGES, 'name', { status: statusLabel }),
     style: css({
       position: 'relative', width: size, height, overflow: 'visible', pointerEvents: 'none',
       animation: 'none',
@@ -325,12 +332,12 @@ export const PetSprite = memo(function PetSprite(p: PetProps) {
             background: warningTint, opacity: .16,
           }) })] : [])))
       : null,
-    actionSheet ? null : formalActionDecoration(action, meta.ring),
-    h('span', { key: 'status', title: `当前状态：${statusLabel}`, style: css({
-      position: 'absolute', top: '7%', right: '-4%', minWidth: 32, maxWidth: 92, padding: '3px 7px', borderRadius: 999,
+    actionSheet ? null : formalActionDecoration(action, meta.ring, language),
+    h('span', { key: 'status', title: translate(language, PET_MESSAGES, 'status', { status: statusLabel }), style: css({
+      position: 'absolute', top: '7%', right: '-4%', minWidth: 32, maxWidth: language === 'en' ? 112 : 92, padding: '3px 7px', borderRadius: 999,
       border: '1px solid rgba(255,255,255,.86)', color: '#fff', background: statusColor,
       boxShadow: `0 3px 10px ${statusColor}55`, fontSize: 10, lineHeight: 1.2, fontWeight: 800, textAlign: 'center',
-      whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+      whiteSpace: 'normal', overflowWrap: 'anywhere',
     }) }, statusLabel),
     ...Array.from({ length: motes }, (_, index) => h('span', { key: `mote-${index}`, style: css({
       position: 'absolute', top: `${24 + index * 10}%`, left: index % 2 === 0 ? '-2%' : '94%', width: 6, height: 6,

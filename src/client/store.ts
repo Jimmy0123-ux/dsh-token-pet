@@ -8,6 +8,9 @@
  */
 
 export interface ProjectionSnapshot {
+  sessionId?: string
+  /** Mount generation: returning to the same session must not revive old UI. */
+  sessionEpoch?: number
   pressure?: unknown
   breakdown?: unknown
   usage?: unknown
@@ -16,6 +19,9 @@ export interface ProjectionSnapshot {
   /** Host-owned today usage buckets; see derive.todayUsageBucketsOf. */
   todayBuckets?: unknown
   running?: boolean
+  /** A ready live view and a real turn boundary, never inferred from tool status. */
+  sessionReady?: boolean
+  turnTimeline?: import('./completion.ts').ConversationTimeline
   promptError?: unknown
   lastToolResult?: unknown
   lastCompaction?: unknown
@@ -32,9 +38,36 @@ type Listener = (snap: ProjectionSnapshot | null) => void
 let current: ProjectionSnapshot | null = null
 const listeners = new Set<Listener>()
 
-export function pushProjections(snap: ProjectionSnapshot | null): void {
+function pushProjections(snap: ProjectionSnapshot | null): void {
   current = snap
   for (const l of listeners) l(snap)
+}
+
+let generation = 0
+let owner: object | null = null
+
+/** One committed dock mount owns the bridge. A superseded lease never revives. */
+export function createProjectionFeed(sessionId: string) {
+  const token = {}
+  const sessionEpoch = ++generation
+  owner = token
+  let disposed = false
+  const isCurrent = () => !disposed && owner === token
+  // Revoke the old draft/actions immediately, before the new feed publishes.
+  pushProjections(null)
+  return {
+    isCurrent,
+    publish(snap: ProjectionSnapshot) {
+      if (isCurrent()) pushProjections({ ...snap, sessionId, sessionEpoch })
+    },
+    dispose() {
+      if (isCurrent()) {
+        owner = null
+        pushProjections(null)
+      }
+      disposed = true
+    },
+  }
 }
 
 export function subscribeProjections(l: Listener): () => void {

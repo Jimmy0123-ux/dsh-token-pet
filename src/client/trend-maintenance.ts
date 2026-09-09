@@ -1,5 +1,8 @@
 import type { TokenPetTrendIndexHealth, TokenPetTrendIndexOperation, TokenPetTrendIndexResult, TokenPetTrendIndexStatus } from '../index-contract.js'
 
+import type { Language } from './i18n.ts'
+import { maintenanceText } from './maintenance-messages.ts'
+
 const HEALTH = new Set<TokenPetTrendIndexHealth>(['ready', 'missing', 'corrupt'])
 const OPERATIONS = new Set<TokenPetTrendIndexOperation>(['idle', 'reconciling', 'rebuilding', 'repairing'])
 const RESULTS = new Set<TokenPetTrendIndexResult>(['completed', 'cancelled', 'failed'])
@@ -29,22 +32,26 @@ export function trendIndexStatusOf(value: unknown): TokenPetTrendIndexStatus | n
   }
 }
 
-export const TREND_REBUILD_CONFIRMATION = '显式重建会读取全部历史会话，并替换当前小时趋势快照。仅在索引缺失、损坏或数据明显异常时继续。\n\n确定重建吗？'
+export function trendRebuildConfirmation(language: Language = 'zh'): string {
+  return maintenanceText(language, 'rebuildConfirmation')
+}
+/** Legacy Chinese text retained for existing consumers. */
+export const TREND_REBUILD_CONFIRMATION = trendRebuildConfirmation('zh')
 
-export function trendHealthLabel(status: TokenPetTrendIndexStatus | null): string {
-  if (!status) return '读取中'
-  if (status.health === 'ready') return '健康'
-  if (status.health === 'missing') return '缺失'
-  return '损坏'
+export function trendHealthLabel(status: TokenPetTrendIndexStatus | null, language: Language = 'zh'): string {
+  if (!status) return maintenanceText(language, 'loading')
+  if (status.health === 'ready') return maintenanceText(language, 'healthy')
+  if (status.health === 'missing') return maintenanceText(language, 'missing')
+  return maintenanceText(language, 'corrupt')
 }
 
-export function trendOperationLabel(status: TokenPetTrendIndexStatus | null): string {
-  if (!status) return '读取中'
-  if (status.operation === 'reconciling') return '正在增量对账'
-  if (status.operation === 'rebuilding') return '正在显式重建'
-  if (status.operation === 'repairing') return `正在修复${status.repairCount > 1 ? `（${status.repairCount} 项）` : ''}`
-  if (status.lastResult === 'completed') return '维护已完成'
-  if (status.lastResult === 'cancelled') return '重建已取消'
-  if (status.lastResult === 'failed') return '维护失败'
-  return '空闲'
+export function trendOperationLabel(status: TokenPetTrendIndexStatus | null, language: Language = 'zh'): string {
+  if (!status) return maintenanceText(language, 'loading')
+  if (status.operation === 'reconciling') return maintenanceText(language, 'reconciling')
+  if (status.operation === 'rebuilding') return maintenanceText(language, 'rebuilding')
+  if (status.operation === 'repairing') return maintenanceText(language, status.repairCount > 1 ? 'repairingCount' : 'repairing', { count: status.repairCount })
+  if (status.lastResult === 'completed') return maintenanceText(language, 'completed')
+  if (status.lastResult === 'cancelled') return maintenanceText(language, 'cancelled')
+  if (status.lastResult === 'failed') return maintenanceText(language, 'failed')
+  return maintenanceText(language, 'idle')
 }

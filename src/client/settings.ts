@@ -8,6 +8,8 @@ export interface TokenPetSettings {
   animationSpeed: number
   lowPerformance: boolean
   language: 'zh' | 'en'
+  /** Opt-in sound for a newly completed response in the current conversation. */
+  completionSound: boolean
   enhancementEnabled: boolean
   enhancementTemplate: string
   enhancementModel: string
@@ -16,8 +18,19 @@ export interface TokenPetSettings {
 
 export const DEFAULT_SETTINGS: TokenPetSettings = {
   size: 120, position: { x: 0, y: 0 }, panelPosition: { x: 0, y: 0 }, panelWidth: 500, panelHeight: 620, animationSpeed: 1,
-  lowPerformance: false, language: 'zh', enhancementEnabled: true,
+  lowPerformance: false, language: 'zh', completionSound: false, enhancementEnabled: true,
   enhancementTemplate: '请优化以下提示词，保留原意并提升清晰度：\n\n{{prompt}}', enhancementModel: '', skinId: 'default',
+}
+export const DEFAULT_ENHANCEMENT_TEMPLATES = {
+  zh: DEFAULT_SETTINGS.enhancementTemplate,
+  en: 'Improve the following prompt while preserving its intent and original language. Make it clear and actionable:\n\n{{prompt}}',
+} as const
+/** Translate only a recognized built-in default. Custom templates are never rewritten. */
+export function resolveEnhancementTemplate(settings: Pick<TokenPetSettings, 'language' | 'enhancementTemplate'>): string {
+  const template = settings.enhancementTemplate
+  return Object.values(DEFAULT_ENHANCEMENT_TEMPLATES).some(value => value === template)
+    ? DEFAULT_ENHANCEMENT_TEMPLATES[settings.language]
+    : template
 }
 const KEY = 'dsh-token-pet.settings.v1'
 export const SETTINGS_EVENT = 'dsh-token-pet-settings-changed'
@@ -42,11 +55,12 @@ export function normalizeSettings(raw: unknown): TokenPetSettings {
     animationSpeed: clamp(r.animationSpeed, 0, 3, DEFAULT_SETTINGS.animationSpeed),
     position: { x: clamp(r.position?.x, -2000, 2000, 0), y: clamp(r.position?.y, -2000, 2000, 0) },
      panelPosition: { x: clamp(r.panelPosition?.x, -2000, 2000, 0), y: clamp(r.panelPosition?.y, -2000, 2000, 0) },
-     panelWidth: clamp(r.panelWidth, 360, 820, DEFAULT_SETTINGS.panelWidth),
-     panelHeight: clamp(r.panelHeight, 420, 920, DEFAULT_SETTINGS.panelHeight),
+     panelWidth: clamp(r.panelWidth, 360, 1200, DEFAULT_SETTINGS.panelWidth),
+     panelHeight: clamp(r.panelHeight, 420, 1400, DEFAULT_SETTINGS.panelHeight),
     lowPerformance: typeof r.lowPerformance === 'boolean' ? r.lowPerformance : DEFAULT_SETTINGS.lowPerformance,
     enhancementEnabled: typeof r.enhancementEnabled === 'boolean' ? r.enhancementEnabled : DEFAULT_SETTINGS.enhancementEnabled,
     language: r.language === 'en' ? 'en' : 'zh',
+    completionSound: typeof r.completionSound === 'boolean' ? r.completionSound : false,
     enhancementTemplate: typeof r.enhancementTemplate === 'string' ? r.enhancementTemplate : DEFAULT_SETTINGS.enhancementTemplate,
     enhancementModel: typeof r.enhancementModel === 'string' ? r.enhancementModel : '',
      skinId: typeof r.skinId === 'string' && /^[a-z0-9][a-z0-9._-]*$/i.test(r.skinId) ? r.skinId : 'default',

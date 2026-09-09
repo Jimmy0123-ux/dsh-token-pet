@@ -14,14 +14,13 @@
  *   useProjection('sessionStats')      → turns/steps/timings
  *   useProjection('contextTimeline')   → history trend (dsh-context)
  *
- * The sprite + panel are rendered through a portal to `document.body` so the
- * pet floats over the whole app (like dsh-pet), while the slot registration
- * only provides the session scope. When no session is active the dock slot
- * simply does not mount, so no pet is shown — the correct semantic for a
- * usage monitor.
+ * The root-scoped overlay renders sprite + panel through a portal to
+ * `document.body`, independently of the session-scoped dock feed. Without an
+ * active dock the pet remains visible, but session figures, draft and composer
+ * actions are cleared. Each committed feed owns a revocable session lease.
  * @module dsh-token-pet/client
  */
-import { createElement as h, Component, Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { createElement as h, Component, Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import type { CSSProperties } from 'react'
 
@@ -47,8 +46,8 @@ import { PET_ACTION_PRIORITY, PET_PREVIEW_EVENT, type PetAction } from './events
 import { ContextPanel, type IndexProgress } from './panel.tsx'
 import { PromptEnhancerPanel } from './prompt-panel.tsx'
 import type { TrendBucket } from './derive.ts'
-import { pushProjections, subscribeProjections, type ProjectionSnapshot } from './store.ts'
-import { clampFloatingOffset, loadSettings, saveSettings, SETTINGS_EVENT, type FloatingRect, type TokenPetSettings } from './settings.ts'
+import { createProjectionFeed, subscribeProjections, type ProjectionSnapshot } from './store.ts'
+import { clampFloatingOffset, loadSettings, saveSettings, SETTINGS_EVENT, type FloatingRect } from './settings.ts'
 import { createComposerPromptBridge } from './prompt.ts'
 import { TokenPetSettingsPanel } from './settings-panel.tsx'
 import { builtinSkinIndex, resolveStyleOverride, type SkinManifest } from './skin.ts'
@@ -58,6 +57,11 @@ import { canLoadTodayUsageTrend, fitPanelSizeToViewport, FLOATING_LAYER, proport
 import { createPanelRequestScope, PANEL_REQUEST_TIMEOUT_MS, shouldStartPanelRequest } from './request-scope.ts'
 import { canReadTokenPetIndex, todayTrendRequestUrl, tokenPetIndexStatusOf } from './index-state.ts'
 import type { TokenPetIndexStatus } from '../index-contract.ts'
+import { createCompletionTracker, conversationTimelineOf } from './completion.ts'
+import { disposeCompletionSound, playCompletionSound, prepareCompletionSound, stopCompletionSound } from './completion-sound.ts'
+import { translate } from './i18n.ts'
+import { useLanguage, useSettings } from './settings-hook.ts'
+import { SHELL_MESSAGES } from './shell-messages.ts'
 
 /** React error boundary so the always-mounted pet NEVER disappears on a render error. */
 class ErrorBoundary extends Component<{ children?: unknown }, { error: unknown }> {
@@ -67,12 +71,18 @@ class ErrorBoundary extends Component<{ children?: unknown }, { error: unknown }
     if (this.state.error !== null) {
       const e = this.state.error
       const msg = e instanceof Error ? `${e.message}\n${e.stack ?? ''}` : `\n${JSON.stringify(e)}`
-      return h('div', {
-        style: { position: 'fixed', right: 18, bottom: 18, zIndex: 2147483000, background: 'rgba(40,10,10,0.97)', color: '#ffd0c8', font: '10px monospace', padding: '8px 10px', borderRadius: 8, border: '1px solid rgba(255,120,90,0.5)', maxWidth: 380, whiteSpace: 'pre-wrap', overflow: 'auto', maxHeight: 240 },
-      }, `[token-pet]\n${msg}`)
+      return h(TokenPetErrorNotice, { message: msg })
     }
     return (this.props.children as never) ?? null
   }
+}
+
+function TokenPetErrorNotice({ message }: { message: string }) {
+  const language = useLanguage()
+  return h('div', {
+    role: 'alert',
+    style: { position: 'fixed', right: 18, bottom: 18, zIndex: 2147483000, background: 'rgba(40,10,10,0.97)', color: '#ffd0c8', font: '10px monospace', padding: '8px 10px', borderRadius: 8, border: '1px solid rgba(255,120,90,0.5)', maxWidth: 'min(380px, calc(100vw - 36px))', boxSizing: 'border-box', whiteSpace: 'pre-wrap', overflowWrap: 'anywhere', overflow: 'auto', maxHeight: 240 },
+  }, `${translate(language, SHELL_MESSAGES, 'renderError')}\n${message}`)
 }
 
 /** Slot-coupled props the framework hands every session-scoped dock component. */
@@ -190,10 +200,10 @@ function buildPetView(projections: {
   }
 }
 
-/** Locale strings (zh-first; small enough to inline, no locale plugin dependency). */
-const T = {
-  pet: '用量小宠物',
-} as const
+/** Slot labels render their own subscription so the host navigation updates too. */
+function TokenPetLabel() {
+  return h('span', null, translate(useLanguage(), SHELL_MESSAGES, 'pet'))
+}
 
 type RequestStatus = 'idle' | 'loading' | 'ready' | 'error'
 
@@ -520,6 +530,10 @@ function SessionProjectionFeed(props: SessionKit) {
   // Host contract: todayUsageBuckets projection, independent of contextTimeline.
   const todayBuckets = useProjection ? useProjection('todayUsageBuckets') : undefined
   const useSession = props.useSession
+  // Actual host SessionSnapshot identity is sessionId, not id.
+  const sessionId = useSession ? useSession((state) => (state as { sessionId?: string }).sessionId) : undefined
+  const sessionReady = useSession ? useSession((state) => (state as { openState?: unknown }).openState === 'open') : false
+  const turnTimeline = useSession ? useSession(conversationTimelineOf) : undefined
   const running = useSession ? useSession((state) => Boolean((state as { running?: unknown }).running)) : undefined
   const removed = useSession ? useSession((state) => Boolean((state as { removed?: unknown }).removed)) : undefined
   const promptError = useSession ? useSession((state) => (state as { promptError?: unknown }).promptError) : undefined
@@ -551,11 +565,26 @@ function SessionProjectionFeed(props: SessionKit) {
   const useInput = props.useInput
   const draft = useInput ? useInput((state) => String((state as { draft?: unknown }).draft ?? '')) : undefined
   const inputActions = props.inputActions
-  const promptBridge = useMemo(() => inputActions ? createComposerPromptBridge(inputActions) : undefined, [inputActions])
+  const feedRef = useRef<ReturnType<typeof createProjectionFeed> | null>(null)
+  const bridgeRef = useRef<ReturnType<typeof createComposerPromptBridge> | undefined>(undefined)
+  // Commit-time ownership revokes buttons before paint. Cleanup is conditional
+  // on the lease, so an old mount cannot erase a newer mount's publication.
+  useLayoutEffect(() => {
+    if (!sessionId) return
+    const feed = createProjectionFeed(sessionId)
+    feedRef.current = feed
+    bridgeRef.current = inputActions ? createComposerPromptBridge(inputActions, feed.isCurrent) : undefined
+    return () => {
+      feed.dispose()
+      feedRef.current = null
+      bridgeRef.current = undefined
+    }
+  }, [sessionId, inputActions])
 
-  useEffect(() => {
-    pushProjections({ pressure, breakdown, usage, stats, timeline, todayBuckets, running, removed, promptError, lastToolResult, lastCompaction, draft, applyPrompt: promptBridge?.apply, sendPrompt: promptBridge?.send })
-  }, [pressure, breakdown, usage, stats, timeline, todayBuckets, running, removed, promptError, lastToolResult, lastCompaction, draft, promptBridge])
+  useLayoutEffect(() => {
+    const promptBridge = bridgeRef.current
+    feedRef.current?.publish({ pressure, breakdown, usage, stats, timeline, todayBuckets, sessionReady, turnTimeline, running, removed, promptError, lastToolResult, lastCompaction, draft, applyPrompt: promptBridge?.apply, sendPrompt: promptBridge?.send })
+  }, [sessionId, inputActions, pressure, breakdown, usage, stats, timeline, todayBuckets, sessionReady, turnTimeline, running, removed, promptError, lastToolResult, lastCompaction, draft])
 
   // Invisible anchor — the window lives in shell.overlay; this component only
   // reports the live figures so the root window never disappears.
@@ -581,7 +610,13 @@ function TokenPetWindow() {
   const [filterModel, setFilterModel] = useState<string | null>(null)
   const [filterDay, setFilterDay] = useState<string | null>(null)
   const [snap, setSnap] = useState<ProjectionSnapshot | null>(null)
-  const [settings, setSettings] = useState<TokenPetSettings>(loadSettings)
+  const settings = useSettings()
+  const completionTracker = useRef(createCompletionTracker())
+  const soundScope = useRef<string | null>(null)
+  const completionSoundEnabled = useRef(settings.completionSound)
+  completionSoundEnabled.current = settings.completionSound
+  const language = settings.language
+  const t = (key: keyof typeof SHELL_MESSAGES, params?: Record<string, string | number>) => translate(language, SHELL_MESSAGES, key, params)
   const [viewport, setViewport] = useState(() => typeof window === 'undefined' ? { width: 1280, height: 800 } : { width: window.innerWidth, height: window.innerHeight })
   useEffect(() => {
     const updateViewport = () => setViewport({ width: window.innerWidth, height: window.innerHeight })
@@ -621,11 +656,14 @@ function TokenPetWindow() {
   }, [panelOpen, panelPhase])
   useEffect(() => {
     const onSettings = (event: Event) => {
-      const detail = (event as CustomEvent<TokenPetSettings>).detail
-      if (detail) setSettings(detail)
+      const detail = (event as CustomEvent<{ completionSound?: boolean }>).detail
+      completionSoundEnabled.current = detail?.completionSound ?? loadSettings().completionSound
+      // Cancel queued notes synchronously, before React's passive effects run.
+      if (!completionSoundEnabled.current) stopCompletionSound()
     }
     window.addEventListener(SETTINGS_EVENT, onSettings)
-    return () => window.removeEventListener(SETTINGS_EVENT, onSettings)
+    window.addEventListener('storage', onSettings)
+    return () => { window.removeEventListener(SETTINGS_EVENT, onSettings); window.removeEventListener('storage', onSettings) }
   }, [])
   const animation = usePetAnimation(undefined, settings.animationSpeed)
   const previousStage = useRef<string | null>(null)
@@ -648,12 +686,33 @@ function TokenPetWindow() {
     return skinIndex.skins.get(settings.skinId)
   }, [settings.skinId, skinIndex])
 
-  useEffect(() => subscribeProjections(setSnap), [])
+  useEffect(() => subscribeProjections((next) => {
+    setSnap(next)
+    const scope = next?.sessionReady && !next.removed ? JSON.stringify([next.sessionId, next.sessionEpoch]) : null
+    if (scope === null || soundScope.current !== scope) stopCompletionSound()
+    soundScope.current = scope
+    const completed = completionTracker.current.observe({
+      sessionId: next?.sessionId, sessionEpoch: next?.sessionEpoch,
+      ready: next?.sessionReady === true, removed: next?.removed,
+      timeline: next?.turnTimeline, enabled: completionSoundEnabled.current,
+    })
+    if (completed && completionSoundEnabled.current) playCompletionSound()
+  }), [])
+  useEffect(() => {
+    if (!settings.completionSound) { stopCompletionSound(); return }
+    // Browsers need a gesture after a reload. Never queue a blocked completion
+    // for later playback; a subsequent gesture only unlocks future notifications.
+    const unlock = () => { void prepareCompletionSound() }
+    window.addEventListener('pointerdown', unlock, { passive: true })
+    window.addEventListener('keydown', unlock)
+    return () => { window.removeEventListener('pointerdown', unlock); window.removeEventListener('keydown', unlock) }
+  }, [settings.completionSound])
+  useEffect(() => () => { completionTracker.current.reset(); disposeCompletionSound() }, [])
 
   // Independent drag handles: one for the pet anchor, one for the panel.
   const petDrag = useFloatingDrag('pet')
   const panelDrag = useFloatingDrag('panel')
-  const { width, height, onResizeStart } = useFloatingResize(settings.panelWidth, settings.panelHeight, 360, 820, 420, 920)
+  const { width, height, onResizeStart } = useFloatingResize(settings.panelWidth, settings.panelHeight, 360, 1200, 420, 1400)
   useEffect(() => { saveSettings({ panelWidth: width, panelHeight: height }) }, [width, height])
   // Never let a remembered desktop-sized panel exceed the real viewport. Do
   // not enforce a minimum here: on a short window that would make the child
@@ -676,6 +735,20 @@ function TokenPetWindow() {
     // Visible pet growth follows the same irreversible source as the panel.
     cumulative: lifetimeLedger.value,
   }), [snap?.pressure, snap?.breakdown, snap?.usage, snap?.stats, snap?.timeline, snap?.todayBuckets, todayUsage, lifetimeLedger.value])
+
+  // Never interpret differences between two sessions as lifecycle events.
+  useEffect(() => {
+    previousStage.current = null
+    previousPercent.current = null
+    previousTurns.current = null
+    previousRunning.current = null
+    previousRemoved.current = null
+    previousPromptError.current = snap?.promptError ?? null
+    previousToolKey.current = null
+    previousCompactionKey.current = null
+    contextBehavior.current = createContextSnapshot()
+    animation.clear()
+  }, [snap?.sessionEpoch, animation.clear])
 
   // Projection bridge for the event layer. These conservative signals are
   // derived only from public projections; host-specific compact/tool events can
@@ -743,7 +816,7 @@ function TokenPetWindow() {
       })
     }
     previousCompactionKey.current = compactKey
-  }, [animation.publish, snap?.lastCompaction, snap?.lastToolResult, snap?.promptError, snap?.removed, snap?.running, view.percent, view.stageInfo.stage, view.stats?.turns])
+  }, [animation.publish, snap?.sessionEpoch, snap?.lastCompaction, snap?.lastToolResult, snap?.promptError, snap?.removed, snap?.running, view.percent, view.stageInfo.stage, view.stats?.turns])
 
   useEffect(() => {
     if (typeof window === 'undefined') return
@@ -771,13 +844,19 @@ function TokenPetWindow() {
   const petNode = createPortal(
     h('div', {
       ref: petDrag.ref,
-      style: css({ ...petFixed, maxWidth: 'calc(100vw - 16px)', maxHeight: 'calc(100vh - 16px)', transform: `translate(${petDrag.offset.x}px, ${petDrag.offset.y}px)` }),
+      style: css({ ...petFixed, width: settings.size + 128, height: Math.round(settings.size * 1.46) + 42, maxWidth: 'calc(100vw - 16px)', maxHeight: 'calc(100vh - 16px)', transform: `translate(${petDrag.offset.x}px, ${petDrag.offset.y}px)` }),
       onPointerDown: petDrag.onPointerDown,
       onClick: () => { if (petDrag.consumeClick()) { animation.publish({ action: 'click', dedupeKey: 'pet-click', interrupt: true }); setPanelOpen((v) => !v) } },
-      title: panelOpen ? '收起统计' : '查看用量统计',
+      title: panelOpen ? t('hideStats') : t('showStats'),
+      role: 'button', tabIndex: 0, 'aria-expanded': panelOpen,
+      'aria-label': panelOpen ? t('hideStats') : t('showStats'),
+      onKeyDown: (event: { key: string; preventDefault(): void }) => {
+        if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); setPanelOpen(open => !open) }
+      },
     }, [
-      h('div', { style: css({ ...petBob }) }, [
+      h('div', { style: css({ ...petBob, position: 'absolute', right: 0, bottom: 0 }) }, [
         h(PetSprite, {
+          language,
           stage: view.stageInfo.stage,
           satiation: view.satiation,
           toolShare: view.toolShare,
@@ -790,7 +869,7 @@ function TokenPetWindow() {
            motionDisabled: reducedMotion || lowPerformance,
            onActionComplete: animation.returnToIdle,
         }),
-        h('div', { style: css(stageChip), title: '当前上下文窗口占用率' }, `上下文 ${view.percent === null ? '–' : view.percent.toFixed(0)}%`),
+        h('div', { style: css(stageChip), title: t('contextTitle') }, t('context', { percent: view.percent === null ? '–' : view.percent.toFixed(0) })),
       ]),
     ]),
     document.body,
@@ -800,10 +879,11 @@ function TokenPetWindow() {
   // The enhancer is an overlaid drawer, so opening it never changes or unmounts
   // the active tab. Narrow viewports use a bottom sheet; desktop uses the right.
   const narrowDrawer = viewport.width < 720 || visibleWidth < 460
+  const compactHeader = visibleWidth < 440
   const panelNode = panelOpen ? createPortal(
-    h('div', { ref: panelDrag.ref, style: css({ ...panelFixed, width: visibleWidth, height: visibleHeight, maxWidth: 'calc(100vw - 16px)', maxHeight: 'calc(100vh - 88px)', overflow: 'hidden', transform: `translate(${panelDrag.offset.x}px, ${panelDrag.offset.y}px)` }) }, [
+    h('div', { ref: panelDrag.ref, style: css({ ...panelFixed, width: visibleWidth, height: 'auto', maxHeight: visibleHeight, maxWidth: 'calc(100vw - 16px)', overflow: 'hidden', transform: `translate(${panelDrag.offset.x}px, ${panelDrag.offset.y}px)` }) }, [
       h('div', { style: css(dragHandle), onPointerDown: panelDrag.onPointerDown }, [
-        h('span', { style: css(dragTitle) }, T.pet),
+        h('span', { style: css(dragTitle), title: t('pet') }, t('pet')),
         h('div', { style: css(actionBar) }, [
           h('button', {
             onPointerDown: (e: { stopPropagation?: () => void }) => e.stopPropagation?.(),
@@ -811,23 +891,24 @@ function TokenPetWindow() {
             style: css({ ...actionBtn, ...enhanceActionBtn, ...(promptDrawerOpen ? enhanceActionBtnOpen : {}) }),
             'aria-expanded': promptDrawerOpen,
             'aria-controls': 'dsh-token-pet-prompt-drawer',
-            title: '打开增强提示词抽屉（不会切换当前标签）',
-          }, '✦ 增强提示词'),
+            title: t('enhanceTitle'), 'aria-label': t('enhanceTitle'), type: 'button',
+          }, `✦ ${t('enhance')}`),
           h('button', {
             onPointerDown: (e: { stopPropagation?: () => void }) => e.stopPropagation?.(),
             onClick: () => { setTrendReloadKey((key) => key + 1); setLifetimeReloadKey((key) => key + 1) },
             style: css(actionBtn),
-            title: '刷新账本、趋势与当前会话统计',
-          }, '刷新'),
+            title: t('refreshTitle'), 'aria-label': t('refreshTitle'), type: 'button',
+          }, compactHeader ? '↻' : t('refresh')),
           h('button', {
             onPointerDown: (e: { stopPropagation?: () => void }) => e.stopPropagation?.(),
             onClick: () => setPanelOpen(false),
             style: css(actionBtn),
-            title: '收起浮窗面板（宠物仍保留）',
-          }, '− 收起'),
+            title: t('collapseTitle'), 'aria-label': t('collapseTitle'), type: 'button',
+          }, compactHeader ? '−' : `− ${t('collapse')}`),
         ]),
       ]),
       h(ContextPanel, {
+        language,
         percent: view.percent,
         contextWindow: view.contextWindow,
         usedTokens: view.usedTokens,
@@ -842,7 +923,7 @@ function TokenPetWindow() {
         lifetimeStatus: lifetimeLedger.status,
         onClearLifetime: doClearLifetime,
         width: visibleWidth,
-        height: panelContentHeight,
+        maxHeight: panelContentHeight,
         filterModel,
         filterDay,
         onFilterModel: setFilterModel,
@@ -862,6 +943,7 @@ function TokenPetWindow() {
       h('aside', {
         id: 'dsh-token-pet-prompt-drawer',
         'aria-hidden': !promptDrawerOpen,
+        'aria-label': t('drawer'),
         style: css({
           ...promptDrawer,
           ...(narrowDrawer ? promptDrawerBottom : promptDrawerRight),
@@ -869,6 +951,7 @@ function TokenPetWindow() {
         }),
         onPointerDown: (event: { stopPropagation?: () => void }) => event.stopPropagation?.(),
       }, h('div', { style: css(promptDrawerScroller) }, h(PromptEnhancerPanel, {
+        key: snap?.sessionEpoch ?? 'no-session',
         drawer: true,
         provider: view.provider,
         model: view.model,
@@ -883,7 +966,7 @@ function TokenPetWindow() {
       h('div', {
         style: css(resizeGrip),
         onPointerDown: onResizeStart,
-        title: '拖动等比例缩放；按住 Shift 可自由调整宽高',
+        title: t('resize'), 'aria-label': t('resize'),
       }, '↘'),
     ]),
     document.body,
@@ -938,7 +1021,7 @@ export function apply(ctx: { slots: SlotsService }): void {
   // details. This keeps preferences discoverable even when the floating panel
   // is closed.
   ctx.slots.inject('settings.section', () => ctx.slots.register(
-    { name: 'settings.section', id: 'token-pet', order: 60, label: () => '用量小宠物' },
+    { name: 'settings.section', id: 'token-pet', order: 60, label: () => h(TokenPetLabel) },
     TokenPetSettingsPanel,
   ))
 
@@ -946,13 +1029,13 @@ export function apply(ctx: { slots: SlotsService }): void {
   // summon button when hidden) can never be lost. Wrapped in an error boundary
   // so even a panel render error never removes the pet.
   ctx.slots.inject('shell.overlay', () => ctx.slots.register(
-    { name: 'shell.overlay', id: 'token-pet', order: 50, label: () => '用量小宠物' },
+    { name: 'shell.overlay', id: 'token-pet', order: 50, label: () => h(TokenPetLabel) },
     () => h(ErrorBoundary, null, h(TokenPetWindow)),
   ))
 
   // Session-scoped feed: reports live projection figures to the window.
   ctx.slots.inject('conversation.input.dock', () => ctx.slots.register(
-    { name: 'conversation.input.dock', id: 'token-pet-feed', order: 50, label: () => '用量小宠物' },
+    { name: 'conversation.input.dock', id: 'token-pet-feed', order: 50, label: () => h(TokenPetLabel) },
     (props: SessionKit) => h(SessionProjectionFeed, props),
   ))
 }
@@ -969,6 +1052,7 @@ const petFixed: CSSProperties = {
   flexDirection: 'column',
   alignItems: 'flex-end',
   gap: 6,
+  justifyContent: 'flex-end',
   pointerEvents: 'auto',
   userSelect: 'none',
   cursor: 'pointer',
@@ -1005,9 +1089,11 @@ const dragHandle: CSSProperties = {
   gap: 8,
   cursor: 'grab',
   padding: '5px 12px',
-  borderRadius: 10,
+  borderRadius: '14px 14px 0 0',
+  height: 42,
+  minHeight: 42,
   border: '1px solid rgba(128,128,160,0.28)',
-  background: 'rgba(24,26,38,0.92)',
+  background: 'rgba(24,26,38,0.96)',
   boxShadow: '0 8px 22px rgba(0,0,0,0.3)',
   flexShrink: 0,
   width: '100%',
@@ -1015,9 +1101,12 @@ const dragHandle: CSSProperties = {
 }
 
 const dragTitle: CSSProperties = {
-  color: '#c6c9d6',
+  color: '#e4e9fa',
   fontSize: 13,
-  fontWeight: 600,
+  fontWeight: 700,
+  minWidth: 0,
+  overflow: 'hidden',
+  textOverflow: 'ellipsis',
   whiteSpace: 'nowrap',
 }
 
@@ -1054,13 +1143,16 @@ const stageChip: CSSProperties = {
   boxShadow: '0 6px 18px rgba(0,0,0,0.3)',
 }
 
-const actionBar: CSSProperties = { display: 'flex', gap: 6, minWidth: 0 }
+const actionBar: CSSProperties = { display: 'flex', alignItems: 'center', gap: 5, minWidth: 0, flexShrink: 0 }
 const actionBtn: CSSProperties = {
   color: '#9aa0b5',
   background: 'rgba(24,26,38,0.9)',
   border: '1px solid rgba(128,128,160,0.28)',
   borderRadius: 8,
-  padding: '3px 9px',
+  padding: '3px 8px',
+  minWidth: 30,
+  height: 30,
+  boxSizing: 'border-box',
   fontSize: 11,
   cursor: 'pointer',
   boxShadow: '0 6px 18px rgba(0,0,0,0.3)',
@@ -1069,7 +1161,7 @@ const actionBtn: CSSProperties = {
 const enhanceActionBtn: CSSProperties = { color: '#f0e8ff', background: 'linear-gradient(135deg,rgba(98,124,255,.8),rgba(128,105,217,.8))', borderColor: 'rgba(196,167,255,.72)', fontWeight: 700 }
 const enhanceActionBtnOpen: CSSProperties = { color: '#fff', boxShadow: '0 0 0 2px rgba(196,167,255,.2),0 6px 18px rgba(0,0,0,.3)' }
 const promptDrawer: CSSProperties = { position: 'absolute', zIndex: 6, boxSizing: 'border-box', background: 'linear-gradient(145deg,rgba(31,35,55,.995),rgba(18,20,31,.995))', border: '1px solid rgba(196,167,255,.42)', boxShadow: '-12px 0 30px rgba(0,0,0,.4)', transition: 'transform .2s ease,opacity .2s ease,visibility .2s ease', opacity: 0, visibility: 'hidden', pointerEvents: 'none', overflow: 'hidden' }
-const promptDrawerRight: CSSProperties = { top: 39, right: 0, bottom: 0, width: 'min(78%, 390px)', borderRadius: '14px 0 14px 14px' }
+const promptDrawerRight: CSSProperties = { top: 42, right: 0, bottom: 0, width: 'min(82%, 460px)', borderRadius: '14px 0 14px 14px' }
 const promptDrawerBottom: CSSProperties = { left: 0, right: 0, bottom: 0, maxHeight: '74%', borderRadius: '14px 14px 0 0', boxShadow: '0 -12px 30px rgba(0,0,0,.4)' }
 const promptDrawerVisible: CSSProperties = { transform: 'translate(0,0)', opacity: 1, visibility: 'visible', pointerEvents: 'auto' }
 const promptDrawerRightHidden: CSSProperties = { transform: 'translateX(104%)' }

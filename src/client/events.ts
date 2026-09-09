@@ -1,3 +1,5 @@
+import { defineMessages, translate, type Language } from './i18n.ts'
+
 /** Unified events understood by the token pet animation layer. */
 export type PetAction =
   | 'idle' | 'working' | 'eating' | 'digesting' | 'warning' | 'evolve' | 'click' | 'archive'
@@ -6,20 +8,27 @@ export type PetAction =
 export const PET_PREVIEW_EVENT = 'dsh-token-pet-preview-action'
 
 /** User-facing semantic runtime status (independent from visual motion policy). */
-export const PET_ACTION_STATUS_LABELS: Readonly<Record<PetAction, string>> = {
-  idle: '空闲',
-  working: '工作中',
-  eating: '压缩中',
-  digesting: '整理中',
-  warning: '上下文预警',
-  evolve: '状态更新',
-  click: '打招呼',
-  archive: '已归档',
-  'tool-success': '工具完成',
-  'tool-failure': '工具失败',
-  'prompt-enhancing': '提示生成中',
-  'prompt-ready': '提示已就绪',
+export const PET_ACTION_MESSAGES = defineMessages({
+  idle: { zh: '空闲', en: 'Idle' },
+  working: { zh: '工作中', en: 'Working' },
+  eating: { zh: '压缩中', en: 'Compacting' },
+  digesting: { zh: '整理中', en: 'Organizing' },
+  warning: { zh: '上下文预警', en: 'Context alert' },
+  evolve: { zh: '状态更新', en: 'Updated' },
+  click: { zh: '打招呼', en: 'Hello!' },
+  archive: { zh: '已归档', en: 'Archived' },
+  'tool-success': { zh: '工具完成', en: 'Tool done' },
+  'tool-failure': { zh: '工具失败', en: 'Tool failed' },
+  'prompt-enhancing': { zh: '提示生成中', en: 'Enhancing' },
+  'prompt-ready': { zh: '提示已就绪', en: 'Prompt ready' },
+})
+export function petActionStatusLabel(action: PetAction, language: Language = 'zh'): string {
+  return translate(language, PET_ACTION_MESSAGES, action)
 }
+/** Compatibility view for callers that explicitly require the Chinese defaults. */
+export const PET_ACTION_STATUS_LABELS: Readonly<Record<PetAction, string>> = Object.fromEntries(
+  Object.entries(PET_ACTION_MESSAGES).map(([action, message]) => [action, message.zh]),
+) as Record<PetAction, string>
 
 export interface PetEvent<T = unknown> {
   /** Stable event id; repeated ids are ignored by the queue. */

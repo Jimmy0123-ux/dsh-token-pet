@@ -86,7 +86,7 @@ test('asset audit remains the single-form maintenance gate', async () => {
 
 test('published package ships one embedded client without duplicate art or sourcemaps', async () => {
   const pkg = await readJson('package.json')
-  assert.deepEqual(pkg.files, ['lib', 'client/client.js', 'cordis.patch.yml', 'README.md', 'CHANGELOG.md', 'LICENSE'])
+  assert.deepEqual(pkg.files, ['lib', 'client/client.js', 'cordis.patch.yml', 'README.md', 'README.en.md', 'CHANGELOG.md', 'LICENSE'])
   assert.equal(pkg.files.includes('assets/pet'), false)
   assert.equal(pkg.files.includes('client'), false)
   const config = await readFile(resolve(root, 'tsdown.config.mjs'), 'utf8')

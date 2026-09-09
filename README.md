@@ -1,5 +1,7 @@
 # DSH Token Pet · 用量小宠物
 
+[English guide](README.en.md) · 简体中文
+
 [![npm version](https://img.shields.io/npm/v/dsh-token-pet.svg)](https://www.npmjs.com/package/dsh-token-pet)
 [![CI](https://github.com/Jimmy0123-ux/dsh-token-pet/actions/workflows/ci.yml/badge.svg)](https://github.com/Jimmy0123-ux/dsh-token-pet/actions/workflows/ci.yml)
 [![license](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
@@ -10,7 +12,20 @@ DSH Token Pet 将当前请求、工具调用、上下文压缩、会话归档和
 
 它不只是动画挂件：可拖动、可缩放的三标签浮窗会展示实时上下文占用、当前模型与 Token 分类、跨会话 Lifetime Ledger、服务商/模型累计、本地时区小时趋势和索引维护状态；提示词增强抽屉支持用户主动触发、预览编辑、覆盖/追加、复制、撤回和直接提交到 DSH composer。面板只读取持久化快照，历史同步由后台增量索引维护，避免打开界面时扫描全部会话。
 
-当前版本：`0.1.0` · Node.js `>=22.19`
+当前发布版本：`0.2.0` · Node.js `>=22.19`
+
+> 本版本新增完整中英双语界面、响应式浮窗布局、默认关闭的完成提示音、默认 Prompt Optimizer 规则及连续编辑增强流程。
+
+### 切换英文与完成提示音
+
+在浮窗 **设置 → 语言与通知**，或 DSH **设置 → 用量小宠物** 中：
+
+- **语言 → English**：立即切换宠物状态、浮窗、增强抽屉、设置及维护反馈；两处设置同步。自定义模板、草稿、预览内容和模型名称保持原文。
+- **完成提示音**：默认关闭。开启后，当前会话每次成功完成回复响一次；工具结束、取消、错误、切换会话和载入旧记录不响。
+- **试听**：手动检查浏览器是否允许播放，不会打开自动提示音。开启开关只解锁音频，不自动响；重载后可能需要点击或按键重新解锁。被浏览器阻止的通知会丢弃，不会随后补响。
+- 声音在本地合成，无音频下载、外部通知服务或系统通知权限请求；关闭开关、离开会话或断开实时视图会停止旧声音。
+
+新版浮窗将当前上下文/会话与终身账本明确分区；模型排行和趋势使用自适应卡片，长模型名可换行，窄宽度下标题栏使用带提示的图标按钮，正文统一滚动。
 
 ## 核心能力一览
 
@@ -67,6 +82,7 @@ DSH Token Pet 将当前请求、工具调用、上下文压缩、会话归档和
 
 ### 提示词增强
 
+- 默认使用本地 MIT `Prompt Optimizer` 规则，直接接入现有增强流程，不增加模式选择；规则只改写提示词，不执行原任务；
 - 仅在用户点击后执行，不自动增强；
 - 未指定模型时跟随当前 DSH 会话路由，并回退到 `agentDefaultModel`；
 - 支持自定义模板与 `{{prompt}}` 占位符；
@@ -147,7 +163,7 @@ dsh plugin --profile web add link:<本项目绝对路径>      # 网页版
 dsh plugin --profile desktop add link:<本项目绝对路径>  # 桌面版
 
 # 或已下载的 tgz
-dsh plugin --profile web add C:\path\to\dsh-token-pet-0.1.1.tgz
+dsh plugin --profile web add C:\path\to\dsh-token-pet-0.2.0.tgz
 ```
 
 安装后需要重启对应 DSH（或刷新 Web 页面），宿主与客户端更新才会生效。

@@ -2,7 +2,34 @@
 
 All notable changes to this project are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Semantic Versioning](https://semver.org/).
 
-## [Unreleased]
+## [0.2.0] - 2026-09-08
+
+### Added
+
+- Complete Chinese/English UI, including pet status, floating shell, usage panels, prompt enhancement, settings, skin messages, maintenance feedback, tooltips, accessibility labels, and locale-aware dates. Both settings surfaces synchronize without resetting drafts, custom templates, or in-flight previews.
+- A bounded local adaptation of the reviewed MIT `prompt-optimizer` Skill is now the default enhancement rule set. It preserves intent, language, facts, constraints, custom-template guidance, and all existing result actions; it never executes the source task or installs a global Skill.
+- Default-off completion sound, a silent audio-unlock toggle, and explicit preview. Only successful live reply boundaries in the current conversation notify; tool completion, cancellation, errors, historical replay, and session changes remain silent. Muting, view changes, and disposal revoke pending notes/preview continuations.
+- English usage guide and isolated Chrome component/shell tests using synthetic data and fake audio (no real session access or audible playback).
+
+### Changed
+
+- Responsive context/session, lifetime, ranking, and trend cards; wrapping model names and a single main scroller. Narrow shell headers keep accessible icon controls; settings use grouped, bounded form fields and a localized file-picker button.
+- Centralized typed bilingual dictionaries and shared live settings subscriptions. Built-in prompt templates follow UI language without overwriting custom templates or translating user content.
+
+### Fixed
+
+- Let the floating panel size to its actual overview content while retaining a bounded scroller for long model/settings views, removing the large empty lower region on tall windows.
+- Keep the prompt textarea stable while it has focus: asynchronous composer draft projections no longer overwrite text or interrupt cursor input mid-sentence.
+- Preserve chronological model headers when deduplicating usage events so multi-model sessions retain the correct provider/model attribution.
+- Bootstrap Lifetime Ledger from live sessions and newly durable session IDs before the first explicit usage-index build, without reading unrelated historical logs; preserve newer durability fences across retries and prevent retry timers from rearming after host disposal.
+- Revoke stale composer actions and clear drafts on session transitions; recheck queued submit admission and discard enhancement completions after their session panel unmounts.
+- Correct the README published version, v0.1.1 release date, and outdated public-repository / CI checklist entries.
+
+### Maintenance notes
+
+- These changes are local and not yet published; the current npm/GitHub release remains 0.1.1.
+- Previously persisted model misattribution is not automatically migrated. A history rebuild alone cannot safely correct the monotonic Lifetime Ledger; review backup and migration strategy before publishing this fix to existing installations.
+- The marketplace catalog's fallback tarball still targets 0.1.0 despite its 0.1.1 version field. Update the catalog only with separate authorization for online changes.
 
 ### Planned
 
@@ -10,7 +37,7 @@ All notable changes to this project are documented here. The format follows [Kee
 - Add browser-level visual regression coverage for animation hand-offs.
 - Record a 24-hour renderer/main-process memory and latency run.
 
-## [0.1.1] - 2026-09-01
+## [0.1.1] - 2026-09-02
 
 ### Changed
 

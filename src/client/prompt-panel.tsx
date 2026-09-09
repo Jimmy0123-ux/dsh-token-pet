@@ -1,6 +1,9 @@
-import { createElement as h, useEffect, useRef, useState } from 'react'
+import { createElement as h, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { createPromptEnhancer, type EnhancementAction, type EnhancementResult, type PromptEnhancerAdapter } from './prompt.ts'
-import { loadSettings, saveSettings, SETTINGS_EVENT } from './settings.ts'
+import { loadSettings, saveSettings, resolveEnhancementTemplate } from './settings.ts'
+import { useSettings } from './settings-hook.ts'
+import { translate, type Language } from './i18n.ts'
+import { promptMessages, promptErrorMessage, PromptEnhancementError } from './prompt-messages.ts'
 
 /** Visible opt-in enhancement UI. The composer owns actual apply/send semantics. */
 type PromptPanelAction = EnhancementAction | 'prompt-enhancing' | 'prompt-ready' | 'send'
@@ -12,6 +15,7 @@ const editorStyle = { width: '100%', boxSizing: 'border-box' as const, resize: '
 const secondaryButton = { color: '#d8ddf7', background: 'rgba(124,150,255,.1)', border: '1px solid rgba(145,167,255,.38)', borderRadius: 7, padding: '5px 9px', fontSize: 11, cursor: 'pointer', transition: 'background .15s ease, border-color .15s ease' }
 const primaryButton = { ...secondaryButton, color: '#fff', background: 'linear-gradient(135deg, #627cff, #8069d9)', borderColor: 'rgba(180,190,255,.72)', fontWeight: 600 }
 export function PromptEnhancerPanel(p: {
+  language?: Language
   initial?: string
   provider?: string
   model?: string
@@ -29,28 +33,47 @@ export function PromptEnhancerPanel(p: {
   const [preview, setPreview] = useState<string | null>(null)
   const [enhancedApplied, setEnhancedApplied] = useState(false)
   const [sent, setSent] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const [error, setError] = useState<unknown>(null)
+  const [copied, setCopied] = useState(false)
   const [busy, setBusy] = useState(false)
   const [sending, setSending] = useState(false)
-  const [enhancementEnabled, setEnhancementEnabled] = useState(() => loadSettings().enhancementEnabled)
+  const settings = useSettings()
+  const language = p.language ?? settings.language
+  const enhancementEnabled = settings.enhancementEnabled
+  const t = (key: keyof typeof promptMessages) => translate(language, promptMessages, key)
   const originalBeforeEnhancement = useRef(initialText)
-
-  useEffect(() => {
-    const onSettings = (event: Event) => {
-      const detail = (event as CustomEvent<{ enhancementEnabled?: boolean }>).detail
-      if (typeof detail?.enhancementEnabled === 'boolean') setEnhancementEnabled(detail.enhancementEnabled)
-    }
-    window.addEventListener(SETTINGS_EVENT, onSettings)
-    return () => window.removeEventListener(SETTINGS_EVENT, onSettings)
+  // DSH publishes composer drafts asynchronously. While the user is typing,
+  // never let a stale projection overwrite the controlled textarea or cursor.
+  const editingOriginal = useRef(false)
+  const previewRef = useRef<HTMLTextAreaElement | null>(null)
+  const previousPreview = useRef<string | null>(null)
+  const previewFocusPending = useRef(false)
+  // The owner keys this panel by the committed feed generation. Ignore async
+  // completions (including animation events) after that session UI unmounts.
+  const lifetime = useRef<object | null>(null)
+  useLayoutEffect(() => {
+    lifetime.current = {}
+    return () => { lifetime.current = null }
   }, [])
 
-  // The composer is the source of truth until an enhancement preview exists.
+  // The initial composer draft is captured once on mount. Subsequent drafts are
+  // published by this panel and must never replace text the user is editing.
+
+  // After generation, place the caret in the enhanced result so the user can
+  // continue editing without being sent back to the source textarea.
   useEffect(() => {
-    if (preview === null && !busy && !sending) {
-      originalBeforeEnhancement.current = initialText
-      setOriginal(initialText)
+    if (preview === null) {
+      previousPreview.current = null
+      previewFocusPending.current = false
+      return
     }
-  }, [initialText, preview, busy, sending])
+    if (previousPreview.current === null) previewFocusPending.current = true
+    previousPreview.current = preview
+    if (previewFocusPending.current && !busy && !sending) {
+      previewRef.current?.focus()
+      previewFocusPending.current = false
+    }
+  }, [preview, busy, sending])
 
   // Keep controller construction out of every render. This panel is mounted
   // alongside the live projections and otherwise gets re-rendered frequently.
@@ -58,7 +81,9 @@ export function PromptEnhancerPanel(p: {
   if (controller.current === null) controller.current = createPromptEnhancer(p.adapter)
   const enhancer = controller.current
   const run = async () => {
-    if (!original.trim() || busy || sending || sent) return
+    const token = lifetime.current
+    const source = preview !== null ? preview : original
+    if (!token || !source.trim() || busy || sending || sent) return
     if (preview === null) originalBeforeEnhancement.current = original
     p.onAction?.('prompt-enhancing')
     setBusy(true)
@@ -66,98 +91,129 @@ export function PromptEnhancerPanel(p: {
     setSent(false)
     try {
       const settings = loadSettings()
-      const result: EnhancementResult = await enhancer.enhance(original, {
-        template: settings.enhancementTemplate,
+      const result: EnhancementResult = await enhancer.enhance(source, {
+        template: resolveEnhancementTemplate(settings),
         provider: p.provider,
         model: settings.enhancementModel || p.model,
       })
+      if (lifetime.current !== token) return
       setPreview(result.enhanced)
       setEnhancedApplied(false)
       p.onAction?.('prompt-ready')
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e))
+      if (lifetime.current === token) setError(e)
     } finally {
-      setBusy(false)
+      if (lifetime.current === token) setBusy(false)
     }
   }
 
+  const applyToComposer = (text: string) => {
+    try { p.onApply?.(text) }
+    catch (e) { setError(e) }
+  }
+
   const apply = (text: string | null, action: EnhancementAction) => {
-    if (text === null || sent) return
+    if (!lifetime.current || text === null || sent) return
     p.onAction?.(action)
     setOriginal(text)
     setEnhancedApplied(action === 'replace')
     setError(null)
-    p.onApply?.(text)
+    applyToComposer(text)
   }
 
   const revert = () => {
-    if (sent || sending) return
+    if (!lifetime.current || sent || sending) return
     const text = originalBeforeEnhancement.current
     p.onAction?.('cancel')
     setOriginal(text)
     setEnhancedApplied(false)
     setError(null)
-    p.onApply?.(text)
+    applyToComposer(text)
   }
 
   const send = async () => {
-    if (!preview?.trim() || sending || busy || sent || !p.onSend) return
+    const token = lifetime.current
+    if (!token || !preview?.trim() || sending || busy || sent || !p.onSend) return
     setSending(true)
     setError(null)
     try {
       p.onAction?.('send')
       // onSend is wired to DSH inputActions, not an HTTP endpoint.
       await p.onSend(preview)
+      if (lifetime.current !== token) return
       setOriginal(preview)
       setEnhancedApplied(true)
       setSent(true)
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e))
+      if (lifetime.current === token) setError(e)
     } finally {
-      setSending(false)
+      if (lifetime.current === token) setSending(false)
     }
   }
 
   const editOriginal = (text: string) => {
+    if (!lifetime.current) return
+    // Keep keystrokes local. Calling the host composer on every character can
+    // publish a parent snapshot and disturb the controlled textarea/caret.
+    editingOriginal.current = true
     setOriginal(text)
     setEnhancedApplied(false)
-    if (!sent) p.onApply?.(text)
+  }
+  const commitOriginal = () => {
+    if (!lifetime.current || sent) return
+    applyToComposer(original)
+    editingOriginal.current = false
   }
 
-  const button = (primary = false) => ({ style: primary ? primaryButton : secondaryButton })
-  return h('section', { 'aria-label': '增强提示词', style: { ...promptCard, ...(p.drawer ? { marginTop: 0, minHeight: 0, border: 0, borderRadius: 0, boxShadow: 'none', background: 'transparent' } : {}) } }, [
+  const copy = async () => {
+    const token = lifetime.current
+    if (!token || preview === null) return
+    setError(null); setCopied(false)
+    try {
+      p.onAction?.('copy')
+      if (p.onCopy) await p.onCopy(preview)
+      else if (typeof navigator !== 'undefined' && navigator.clipboard) await navigator.clipboard.writeText(preview)
+      else throw new PromptEnhancementError('clipboard')
+      if (lifetime.current === token) setCopied(true)
+    } catch (e) { if (lifetime.current === token) setError(e) }
+  }
+  const button = (primary = false) => ({ type: 'button' as const, style: primary ? primaryButton : secondaryButton })
+  return h('section', { 'aria-label': t('title'), style: { ...promptCard, minWidth: 0, overflowWrap: 'anywhere', ...(p.drawer ? { marginTop: 0, minHeight: 0, border: 0, borderRadius: 0, boxShadow: 'none', background: 'transparent' } : {}) } }, [
     h('div', { key: 'header', style: promptHeader }, [
       h('div', { key: 'heading', style: { display: 'flex', flexDirection: 'column', minWidth: 0 } }, [
-        h('span', { key: 'title', style: promptTitle }, '增强提示词'),
-        h('span', { key: 'hint', style: promptHint }, sent ? '已发送' : preview !== null ? '结果可编辑' : '手动触发 · 不自动发送'),
+        h('span', { key: 'title', style: promptTitle }, t('title')),
+        h('span', { key: 'hint', style: promptHint }, t(sent ? 'sent' : preview !== null ? 'editable' : 'manual')),
       ]),
-      p.onClose ? h('button', { key: 'close', type: 'button', onClick: p.onClose, 'aria-label': '关闭增强提示词抽屉', style: { ...secondaryButton, padding: '4px 8px', flex: 'none' } }, '关闭') : null,
+      p.onClose ? h('button', { key: 'close', type: 'button', onClick: p.onClose, 'aria-label': t('closeAria'), style: { ...secondaryButton, padding: '4px 8px', flex: 'none' } }, t('close')) : null,
     ]),
     h('textarea', {
-      key: 'input', value: original, onChange: (e: { target: { value: string } }) => editOriginal(e.target.value),
-      placeholder: '输入提示词（不会自动发送）', rows: 3,
-      'aria-label': '原始提示词', style: editorStyle,
+      key: 'input', value: original,
+      onFocus: () => { editingOriginal.current = true }, onBlur: commitOriginal,
+      onChange: (e: { target: { value: string } }) => editOriginal(e.target.value),
+      placeholder: t('placeholder'), rows: 3,
+      'aria-label': t('original'), style: editorStyle,
       disabled: sent || busy || sending,
     }),
     h('div', { key: 'privacy', style: { marginTop: 6, color: '#9aa0b5', fontSize: 10, lineHeight: 1.45 } }, [
-      '增强只在点击后调用当前 DSH 模型，会产生额外 Token；结果可编辑，发送前不会自动提交。',
-      !enhancementEnabled ? h('button', { key: 'enable', ...button(), onClick: () => { saveSettings({ enhancementEnabled: true }); setEnhancementEnabled(true) }, style: { ...secondaryButton, marginLeft: 6 } }, '开启增强') : null,
+      t('privacy'),
+      !enhancementEnabled ? h('button', { key: 'enable', ...button(), onClick: () => { saveSettings({ enhancementEnabled: true }) }, style: { ...secondaryButton, marginLeft: 6 } }, t('enable')) : null,
     ]),
     preview !== null ? h('textarea', {
-      key: 'preview', value: preview, onChange: (e: { target: { value: string } }) => { setPreview(e.target.value); setEnhancedApplied(false) },
-      'aria-label': '增强结果（可编辑）', rows: 5, disabled: sent || sending,
+      key: 'preview', ref: previewRef, value: preview, onChange: (e: { target: { value: string } }) => { setPreview(e.target.value); setEnhancedApplied(false); setCopied(false) },
+      'aria-label': t('preview'), rows: 5, disabled: sent || sending || busy,
       style: { ...editorStyle, marginTop: 8, borderColor: 'rgba(124,150,255,.48)', background: 'rgba(31,35,55,.72)' },
     }) : null,
     h('div', { key: 'buttons', style: { display: 'flex', gap: 5, marginTop: 5, flexWrap: 'wrap' } }, [
-      h('button', { key: 'enhance', ...button(true), onClick: run, disabled: !enhancementEnabled || busy || sending || sent || !original.trim() }, busy ? '增强中…' : '增强提示词'),
-      preview !== null ? h('button', { key: 'replace', ...button(), onClick: () => apply(preview, 'replace'), disabled: sending || sent }, enhancedApplied ? '已覆盖' : '覆盖原文') : null,
-      preview !== null ? h('button', { key: 'append', ...button(), onClick: () => apply(`${original}\n\n${preview}`, 'append'), disabled: sending || sent }, '插入末尾') : null,
-      preview !== null ? h('button', { key: 'copy', ...button(), onClick: () => { p.onAction?.('copy'); p.onCopy?.(preview); void navigator.clipboard?.writeText(preview) }, disabled: sending }, '复制增强版') : null,
-      preview !== null ? h('button', { key: 'regenerate', ...button(), onClick: run, disabled: busy || sending || sent }, '重新生成') : null,
-      preview !== null ? h('button', { key: 'revert', ...button(), onClick: revert, disabled: sending || sent }, sent ? '已发送（不可撤回）' : '撤回增强') : null,
-      preview !== null ? h('button', { key: 'send', ...button(true), onClick: () => void send(), disabled: busy || sending || sent || !p.onSend || !preview.trim() }, sending ? '发送中…' : '直接发送') : null,
+      h('button', { key: 'enhance', ...button(true), onClick: run, disabled: !enhancementEnabled || busy || sending || sent || !original.trim() }, t(busy ? 'busy' : 'title')),
+      preview !== null ? h('button', { key: 'replace', ...button(), onClick: () => apply(preview, 'replace'), disabled: busy || sending || sent }, t(enhancedApplied ? 'applied' : 'replace')) : null,
+      preview !== null ? h('button', { key: 'append', ...button(), onClick: () => apply(`${original}\n\n${preview}`, 'append'), disabled: busy || sending || sent }, t('append')) : null,
+      preview !== null ? h('button', { key: 'copy', ...button(), onClick: () => void copy(), disabled: sending || busy }, t('copy')) : null,
+      preview !== null ? h('button', { key: 'regenerate', ...button(), onClick: run, disabled: !enhancementEnabled || busy || sending || sent }, t('regenerate')) : null,
+      preview !== null ? h('button', { key: 'revert', ...button(), onClick: revert, disabled: busy || sending || sent }, t(sent ? 'irrevocable' : 'revert')) : null,
+      preview !== null ? h('button', { key: 'send', ...button(true), onClick: () => void send(), disabled: busy || sending || sent || !p.onSend || !preview.trim() }, t(sending ? 'sending' : 'send')) : null,
     ]),
-    sent ? h('div', { key: 'sent', role: 'status', style: { marginTop: 5, color: '#9fe3b1' } }, '已交给 DSH composer 发送；DSH 负责最终结算，不能撤回已发送消息。') : null,
-    error !== null ? h('div', { key: 'error', role: 'alert', style: { color: '#ffb4a8', marginTop: 5 } }, error) : null,
+    copied ? h('div', { key: 'copied', role: 'status' }, t('copied')) : null,
+    sent ? h('div', { key: 'sent', role: 'status', style: { marginTop: 5, color: '#9fe3b1' } }, t('sentDetail')) : null,
+    error !== null ? h('div', { key: 'error', role: 'alert', style: { color: '#ffb4a8', marginTop: 5 } }, promptErrorMessage(error, language)) : null,
   ])
 }

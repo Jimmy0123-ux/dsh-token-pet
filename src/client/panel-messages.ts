@@ -1,0 +1,37 @@
+import { defineMessages, translate, type Language, type MessageParams } from './i18n.ts'
+
+export const panelMessages = defineMessages({
+  overview: { zh: '总览', en: 'Overview' }, models: { zh: '模型', en: 'Models' }, settings: { zh: '设置', en: 'Settings' },
+  unknownTime: { zh: '时间未知', en: 'Unknown time' }, unknownModel: { zh: '模型未知', en: 'Unknown model' },
+  noTrend: { zh: '暂无趋势数据', en: 'No trend data yet' }, requests: { zh: '{tokens} tokens · {count} 次请求', en: '{tokens} tokens · {count} requests' },
+  input: { zh: '输入', en: 'Input' }, output: { zh: '输出', en: 'Output' }, cacheRead: { zh: '缓存读', en: 'Cache read' }, cacheWrite: { zh: '缓存写', en: 'Cache write' },
+  indexUnknown: { zh: '正在检查索引状态…', en: 'Checking index status…' }, indexReady: { zh: '索引已就绪', en: 'Index ready' }, indexed: { zh: ' · {count} 个已索引', en: ' · {count} indexed' },
+  indexBuilding: { zh: '首次建立历史索引 · {completed}/{total}', en: 'Building history index · {completed}/{total}' },
+  indexPartial: { zh: '已有索引 · 待同步 {count} 个会话', en: 'Index available · {count} sessions awaiting sync' },
+  indexSyncing: { zh: '正在增量同步 · {completed}/{total}', en: 'Syncing new sessions · {completed}/{total}' },
+  indexMissing: { zh: '尚未建立历史索引', en: 'History index not built yet' }, indexCancelled: { zh: '历史索引操作已暂停', en: 'History indexing paused' },
+  indexError: { zh: '索引读取失败；现有终身用量账本不受影响', en: 'Index could not be read; the existing lifetime ledger is unchanged' },
+  context: { zh: '当前上下文', en: 'Current context' }, sessionDetails: { zh: '展开会话明细', en: 'Show session details' }, hideSessionDetails: { zh: '收起会话明细', en: 'Hide session details' }, ledgerDetails: { zh: '展开账本分类', en: 'Show ledger breakdown' }, hideLedgerDetails: { zh: '收起账本分类', en: 'Hide ledger breakdown' }, contextLoading: { zh: '上下文窗口读取中', en: 'Reading context window…' }, composition: { zh: '上下文构成', en: 'Context breakdown' },
+  system: { zh: '系统', en: 'System' }, tools: { zh: '工具', en: 'Tools' }, messages: { zh: '对话', en: 'Messages' },
+  ledgerScope: { zh: '跨会话累计', en: 'Across all sessions' }, ledger: { zh: '终身用量账本', en: 'Lifetime usage ledger' }, sessions: { zh: ' · {count} 个会话', en: ' · {count} sessions' },
+  readError: { zh: '读取失败', en: 'Could not load' }, loading: { zh: '读取中…', en: 'Loading…' },
+  refreshFailed: { zh: '本次有 {count} 个会话读取失败，账本保留既有值但本次结果可能暂不完整。', en: '{count} sessions could not be read. Previous ledger values are preserved; these results may be incomplete.' },
+  clearedAt: { zh: '账本历史已于 {date} 永久清空；此后继续累计。', en: 'Ledger history was permanently cleared on {date}; usage continues to accumulate from then.' },
+  ledgerNote: { zh: '永久累计，不受当前会话切换或普通统计重置影响。', en: 'Persistent totals, independent of the current session and ordinary statistics resets.' },
+  confirmTitle: { zh: '确认永久清空？', en: 'Permanently clear history?' },
+  clearWarning: { zh: '此操作将永久清空终身用量账本的历史，无法恢复。普通统计重置不能撤销此操作；之后的新用量会继续累计。', en: 'This permanently clears lifetime usage history and cannot be undone. An ordinary statistics reset cannot restore it. New usage will continue to accumulate afterward.' },
+  cancel: { zh: '取消', en: 'Cancel' }, confirmClear: { zh: '确认永久清空', en: 'Permanently clear' }, clearing: { zh: '清空中…', en: 'Clearing…' }, clear: { zh: '清空历史（不可恢复）', en: 'Clear history (irreversible)' },
+  clearSuccess: { zh: '终身用量历史已永久清空。', en: 'Lifetime usage history permanently cleared.' }, clearFailed: { zh: '清空失败，未确认清空成功。请重试。', en: 'Clearing was not confirmed. Please try again.' },
+  topModels: { zh: '用量最高的 5 个服务商与模型', en: 'Top 5 providers & models' }, lifetime: { zh: '终身累计', en: 'Lifetime' }, noModelDetails: { zh: '暂无模型明细', en: 'No model details yet' },
+  todayTrend: { zh: '本日用量趋势', en: 'Today’s usage trend' }, refreshingHourly: { zh: '后台刷新中 · 每小时', en: 'Refreshing · Hourly' }, hourly: { zh: '每小时', en: 'Hourly' },
+  opening: { zh: '正在打开统计…', en: 'Opening statistics…' }, trendNeedsIndex: { zh: '首次建立历史索引后显示趋势', en: 'Build the history index to see trends' }, trendError: { zh: '本日趋势读取失败', en: 'Could not load today’s trend' }, trendLoading: { zh: '正在读取本日趋势…', en: 'Loading today’s trend…' },
+  session: { zh: '当前会话', en: 'Current session' }, turns: { zh: '轮次', en: 'Turns' }, steps: { zh: '步数', en: 'Steps' }, modelTime: { zh: '模型耗时', en: 'Model time' }, toolCalls: { zh: '工具调用', en: 'Tool calls' },
+  buildIndex: { zh: '首次建立索引', en: 'Build index' }, sync: { zh: '立即同步', en: 'Sync now' }, retry: { zh: '重试', en: 'Retry' },
+  allModels: { zh: '全部服务商与模型', en: 'All providers & models' }, modelIntro: { zh: '分类来自账本的模型/日期记录；源接口未提供分类时仅显示真实总量。', en: 'Breakdowns come from ledger model/day records. Only reported totals are shown when a breakdown is unavailable.' },
+  noBreakdown: { zh: '当前接口未提供该模型的 Token 分类，因此不进行推算。', en: 'The source provides no token breakdown for this model. No estimates are made.' }, noModelUsage: { zh: '暂无模型用量', en: 'No model usage yet' },
+  settingsLoading: { zh: '正在加载设置…', en: 'Loading settings…' }, panel: { zh: '用量小宠物统计面板', en: 'Token pet usage panel' }, tabs: { zh: '统计面板', en: 'Usage views' },
+})
+export type PanelMessageKey = keyof typeof panelMessages
+export function panelText(language: Language, key: PanelMessageKey, params?: MessageParams): string {
+  return translate(language, panelMessages, key, params)
+}

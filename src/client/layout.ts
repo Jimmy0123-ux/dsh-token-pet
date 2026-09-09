@@ -1,3 +1,9 @@
+/** Intrinsic content grid: each card collapses to available width, even below its preferred minimum. */
+export function panelContentGrid(minimum = 260) {
+  const safeMinimum = Number.isFinite(minimum) ? Math.max(1, minimum) : 260
+  return { display: 'grid' as const, gridTemplateColumns: `repeat(auto-fit,minmax(min(100%,${safeMinimum}px),1fr))`, gap: 10, minWidth: 0 }
+}
+
 /** Keep the statistics window above the independently draggable pet. */
 export const FLOATING_LAYER = {
   pet: 9998,

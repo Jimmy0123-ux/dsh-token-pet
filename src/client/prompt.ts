@@ -1,3 +1,4 @@
+import { PromptEnhancementError } from './prompt-messages.ts'
 /** Explicit, user-triggered prompt enhancement; never sends a prompt automatically. */
 export type EnhancementAction = 'replace' | 'append' | 'copy' | 'regenerate' | 'cancel'
 export interface EnhancementRequest { prompt: string; template?: string; provider?: string; model?: string }
@@ -10,10 +11,10 @@ export const httpPromptEnhancer: PromptEnhancerAdapter = {
     const response = await fetch('/token-pet/prompt/enhance', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(req) })
     const data = await response.json().catch(() => ({})) as Partial<EnhancementResult> & { error?: unknown }
     if (!response.ok) {
-      const detail = typeof data.error === 'string' && data.error.trim() ? `：${data.error}` : ''
-      throw new Error(`提示词增强不可用（HTTP ${response.status}）${detail}`)
+      const detail = typeof data.error === 'string' && data.error.trim() ? `: ${data.error}` : ''
+      throw new PromptEnhancementError('http', { status: response.status, detail })
     }
-    if (typeof data.enhanced !== 'string') throw new Error('提示词增强响应缺少 enhanced 字段。')
+    if (typeof data.enhanced !== 'string') throw new PromptEnhancementError('missing')
     return { original: req.prompt, enhanced: data.enhanced, model: data.model }
   },
 }
@@ -24,18 +25,25 @@ export interface ComposerInputActions {
 }
 
 /** Uses DSH's real composer state machine: update its draft, then invoke its queue submit. */
-export function createComposerPromptBridge(actions: ComposerInputActions) {
-  const apply = (text: string) => { actions.setDraft(text) }
+export function createComposerPromptBridge(actions: ComposerInputActions, isCurrent: () => boolean = () => true) {
+  const assertCurrent = () => {
+    if (!isCurrent()) throw new PromptEnhancementError('stale')
+  }
+  const apply = (text: string) => { assertCurrent(); actions.setDraft(text) }
   const send = (text: string) => {
+    assertCurrent()
     actions.setDraft(text)
     // Let the input machine publish the new draft before admission snapshots
     // the pending images. Some DSH builds batch the draft transition; calling
     // submit in the same stack can otherwise submit text while losing the
     // attachment rail.
-    return new Promise<void>((resolve) => {
+    return new Promise<void>((resolve, reject) => {
       queueMicrotask(() => {
-        actions.submit()
-        resolve()
+        try {
+          assertCurrent()
+          actions.submit()
+          resolve()
+        } catch (error) { reject(error) }
       })
     })
   }

@@ -1,7 +1,7 @@
 {
   "name": "dsh-token-pet",
-  "version": "0.1.1",
-  "description": "DeepSeek Harness Desktop 用量小宠物：用逐帧角色动作反馈运行状态，并展示上下文、终身 Token 用量与历史趋势。",
+  "version": "0.2.0",
+  "description": "A bilingual floating pet for DeepSeek Harness with runtime status, context and lifetime token usage, trends, and optional completion sounds.",
   "type": "module",
   "main": "lib/index.js",
   "types": "lib/index.d.ts",
@@ -19,6 +19,7 @@
     "client/client.js",
     "cordis.patch.yml",
     "README.md",
+    "README.en.md",
     "CHANGELOG.md",
     "LICENSE"
   ],

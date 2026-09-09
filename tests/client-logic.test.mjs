@@ -112,7 +112,7 @@ test('formal pet renders approved embedded artwork and respects motion stop', ()
     action: 'working', animationSpeed: 0, motionDisabled: true,
   }))
   assert.match(html, /data:image\/png;base64,/)
-  assert.match(html, /Token Pet，工作中/)
+  assert.ok(html.includes('用量小宠物，工作中'), 'Chinese semantic status is exposed in the accessible pet name')
   assert.match(html, /animation:none/)
   assert.match(html, />工作中</)
   assert.doesNotMatch(html, /活跃|形态/)
@@ -126,7 +126,7 @@ test('semantic status stays working when visual motion is forced to idle', () =>
     stage: 'active', satiation: 0, toolShare: 0, progress: 0.25,
     action: 'idle', statusAction: 'working', motionDisabled: true,
   }))
-  assert.match(html, /Token Pet，工作中/)
+  assert.ok(html.includes('用量小宠物，工作中'), 'Chinese semantic status is exposed in the accessible pet name')
   assert.match(html, />工作中</)
   assert.doesNotMatch(html, />空闲</)
 })
@@ -341,7 +341,10 @@ test('panel has no unused cumulative GET and one fetch site per visible data sou
   assert.equal(source.match(/['"]\/token-pet\/index\/sync['"]/g)?.length, 1, 'only the explicit sync callback may reference the sync route')
   assert.doesNotMatch(source, /shouldSyncTokenPetIndex/)
   assert.match(source, /useTodayUsageTrend\(trendReloadKey,/)
-  assert.match(source, /`上下文 \$\{view\.percent/)
+  assert.match(source, /t\('context', \{ percent: view\.percent/)
+  const labels = readFileSync(new URL('../src/client/shell-messages.ts', import.meta.url), 'utf8')
+  assert.match(labels, /上下文 \{percent\}%/)
+  assert.match(labels, /Context \{percent\}%/)
   assert.doesNotMatch(source, /形态：|stageLabel|useCumulativeUsage|setReloadKey/)
 })
 
@@ -403,7 +406,7 @@ test('Lifetime Ledger response and irreversible clear copy render independently'
     phase: 1,
   }))
   assert.match(html, /终身用量账本/)
-  assert.match(html, /唯一主账本/)
+  assert.match(html, /跨会话累计/)
   assert.match(html, /用量最高的 5 个服务商与模型/)
   assert.doesNotMatch(html, /Lifetime Ledger|Top 5 Provider/)
   assert.doesNotMatch(html, /DSH 累计用量/)
@@ -546,7 +549,9 @@ test('settings explain snapshot-only reads and require an explicit trend rebuild
   assert.match(html, /普通状态读取与趋势刷新只读取校验过的小时快照/)
   assert.match(html, />显式重建趋势索引</)
   assert.match(source, /attempts >= 120/)
-  assert.match(source, /自动刷新已暂停，请手动刷新状态/)
+  assert.match(source, /key: 'pollingPaused'/)
+  const labels = readFileSync(new URL('../src/client/maintenance-messages.ts', import.meta.url), 'utf8')
+  assert.match(labels, /自动刷新已暂停，请手动刷新状态/)
   assert.doesNotMatch(source, /setInterval/)
 })
 

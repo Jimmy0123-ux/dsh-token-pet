@@ -17,6 +17,9 @@
 
 import type { PetAction } from './events.ts'
 import type { PetStage } from './derive.ts'
+import { localeFor, type Language } from './i18n.ts'
+import { SkinImportError } from './skin-messages.ts'
+export { SkinImportError } from './skin-messages.ts'
 
 // ---- Manifest types (backward-compatible with existing simple schema) ----
 
@@ -76,6 +79,11 @@ export interface SkinManifest {
    * external image assets.
    */
   styleOverrides?: Record<string, string>
+}
+
+/** Localize display names only; manifest IDs and source data are never rewritten. */
+export function skinDisplayName(skin: SkinManifest, language: Language = 'zh'): string {
+  return skin.nameLocalized?.[localeFor(language)] ?? skin.nameLocalized?.[language] ?? skin.name
 }
 
 export interface SkinIndex { skins: Map<string, SkinManifest>; fallback: SkinManifest }
@@ -179,7 +187,7 @@ export interface ImportedSkinBundle {
 
 /** ZIP import is intentionally host-owned: DSH client modules cannot load npm ZIP libraries. */
 export function importSkinZip(_input: ArrayBuffer | Uint8Array, _limits: { maxZipBytes?: number; maxFiles?: number; maxFileBytes?: number; maxTotalBytes?: number } = {}): ImportedSkinBundle {
-  throw new Error('皮肤 ZIP 导入需要宿主适配器；客户端不会加载外部 ZIP 解包模块。')
+  throw new SkinImportError()
 }
 
 // ---- Built-in skins (declarative, no external image assets) ----

@@ -96,14 +96,19 @@ function identity(event: UsageEvent): string | undefined {
 }
 function terminal(type: string | undefined): boolean { return type === 'turn/end' || type === 'step/end' || type === 'assistant/message' }
 function usageEvents(events: UsageEvent[]): UsageEvent[] {
-  const selected = new Map<string, { event: UsageEvent; terminal: boolean }>(); const plain: UsageEvent[] = []
-  for (const event of events) {
-    const usage = usageOf(event); if (!usage) { plain.push(event); continue }
-    const key = identity(event); if (!key) { plain.push(event); continue }
+  const selected = new Map<string, { index: number; terminal: boolean }>(); const retained = new Set<number>()
+  for (const [index, event] of events.entries()) {
+    const usage = usageOf(event); if (!usage) { retained.add(index); continue }
+    const key = identity(event); if (!key) { retained.add(index); continue }
     const old = selected.get(key); const isTerminal = terminal(event.type)
-    if (!old || isTerminal || !old.terminal) selected.set(key, { event, terminal: isTerminal })
+    if (!old || isTerminal || !old.terminal) {
+      if (old) retained.delete(old.index)
+      selected.set(key, { index, terminal: isTerminal }); retained.add(index)
+    }
   }
-  return [...plain, ...[...selected.values()].map(x => x.event)]
+  // Keep each winner at its original position relative to request headers.
+  // Appending keyed usage after all headers attributes it to the last model.
+  return events.filter((_event, index) => retained.has(index))
 }
 function modelOf(event: UsageEvent): ModelKey | undefined {
   if (event.type !== 'request/header') return undefined

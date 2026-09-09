@@ -39,6 +39,7 @@ import { deriveTokenPetIndexState, type TokenPetIndexOperation, type TokenPetInd
 import { FileLifetimeLedger, lifetimeLedgerPath } from './lifetime-ledger.js'
 import { LIFETIME_CLEAR_CONFIRMATION } from './lifetime-contract.js'
 import { resolvePromptRoute } from './prompt-route.js'
+import { buildPromptOptimizerInput } from './prompt-optimizer.js'
 import { StaleWhileRevalidate } from './stale-cache.js'
 import { FileHourlyTrendIndex, trendRevisionKey, type SequencedUsageEvent, type TrendPersistenceService } from './hourly-trend-index.js'
 
@@ -301,6 +302,11 @@ export function apply(ctx: Context): void {
   // `sessionQuery`; the optional notify keeps headless hosts (and effect
   // start ordering) harmless.
   const indexScheduler: { notify?: () => void } = {}
+  // Before the first explicit index build, observe only live sessions and IDs
+  // with a durability fence in this host. Never backfill every closed log.
+  // Generations keep an event arriving during a refresh queued for the next pass.
+  const lifetimePendingSessions = new Map<string, number>()
+  let lifetimeSessionGeneration = 0
 
   // Eager projection drive: no polling and no transcript scan on panel reopen.
   ctx.inject(['sessionPersistence'], (persistenceCtx) => {
@@ -328,6 +334,7 @@ export function apply(ctx: Context): void {
         // Merge + debounce an incremental index sync after every durability
         // fence. Never awaited: the fence must not stall on index work, and
         // the coordinator serializes against any running sync itself.
+        if (typeof sessionId === 'string') lifetimePendingSessions.set(sessionId, ++lifetimeSessionGeneration)
         indexScheduler.notify?.()
         if (typeof sessionId !== 'string' || !trendPending.has(sessionId)) return Promise.resolve()
         // Returning this promise makes SessionStore.flush await our checkpoint.
@@ -451,6 +458,7 @@ export function apply(ctx: Context): void {
         indexInspectionRefreshing = true
         return indexInspection.refresh().finally(() => { indexInspectionRefreshing = false })
       }
+      let coordinatorDisposed = false
       let lifetimeRefreshing: Promise<void> | undefined
       let lifetimeRefreshAt = 0
       let lifetimeRetryTimer: ReturnType<typeof setTimeout> | undefined
@@ -480,10 +488,35 @@ export function apply(ctx: Context): void {
        * bounded retry lets transient lock/read failures converge.
        */
       const refreshLifetimeLedger = (force = false): Promise<void> => {
+        if (coordinatorDisposed) return Promise.resolve()
         if (lifetimeRefreshing) return lifetimeRefreshing
-        if (!force && Date.now() - lifetimeRefreshAt < LIFETIME_REFRESH_THROTTLE_MS) return Promise.resolve()
+        const elapsed = Date.now() - lifetimeRefreshAt
+        if (!force && elapsed < LIFETIME_REFRESH_THROTTLE_MS) {
+          // Keep a closed session's final fence from waiting for the 5-minute
+          // fallback merely because it arrived inside the refresh throttle.
+          if (lifetimePendingSessions.size > 0 && !lifetimeRetryTimer) {
+            lifetimeRetryTimer = setTimeout(() => { lifetimeRetryTimer = undefined; void refreshLifetimeLedger(true) }, LIFETIME_REFRESH_THROTTLE_MS - elapsed)
+            lifetimeRetryTimer.unref?.()
+          }
+          return Promise.resolve()
+        }
         lifetimeRefreshAt = Date.now()
-        const promise = lifetimeLedger.refresh(sessionQuery, undefined, usageIndex).then(result => {
+        const pending = new Map(lifetimePendingSessions)
+        const promise = (async () => {
+          const persisted = await usageIndex.isPersisted()
+          const query: SessionQueryService = persisted ? sessionQuery : {
+            listSessions: async signal => (await sessionQuery.listSessions(signal))
+              .filter(record => record.live || pending.has(record.header.id)),
+            readSession: id => sessionQuery.readSession(id),
+          }
+          return lifetimeLedger.refresh(query, undefined, persisted ? usageIndex : undefined)
+        })().then(result => {
+          if (coordinatorDisposed) return
+          if (result.failed === 0) {
+            for (const [id, generation] of pending) {
+              if (lifetimePendingSessions.get(id) === generation) lifetimePendingSessions.delete(id)
+            }
+          }
           lifetimeRefreshFailed = result.failed
           lifetimeRefreshListed = result.listed
           if (result.failed === 0) lifetimeRetries = 0
@@ -494,6 +527,7 @@ export function apply(ctx: Context): void {
             lifetimeRetryTimer.unref?.()
           }
         }).catch(error => {
+          if (coordinatorDisposed) return
           lifetimeRefreshFailed = 1
           console.warn('[token-pet] Lifetime Ledger background refresh failed:', error instanceof Error ? error.message : String(error))
           if (lifetimeRetries < LIFETIME_RETRY_BUDGET) {
@@ -505,11 +539,16 @@ export function apply(ctx: Context): void {
           }
         }).finally(() => {
           if (lifetimeRefreshing === promise) lifetimeRefreshing = undefined
+          // Retry timers run outside indexOperation. A fence can join that old
+          // flight without setting indexTrailingSync, so explicitly schedule any
+          // newer generation after success. Failures keep the bounded retry path.
+          if (!coordinatorDisposed && lifetimeRefreshFailed === 0 && lifetimePendingSessions.size > 0) requestAutoIndexSync()
         })
         lifetimeRefreshing = promise
         return promise
       }
       const completeOperation = async (operation: RunningIndexOperation, result: { cancelled: boolean; failed: number }): Promise<void> => {
+        if (coordinatorDisposed) return
         if (result.cancelled) indexTerminal = 'cancelled'
         else if (result.failed > 0) { indexTerminal = 'error'; indexError = `${result.failed} session(s) failed` }
         else { indexTerminal = undefined; indexError = undefined }
@@ -529,12 +568,14 @@ export function apply(ctx: Context): void {
         }
       }
       const failOperation = (operation: RunningIndexOperation, error: unknown): void => {
+        if (coordinatorDisposed) return
         indexTerminal = 'error'
         indexError = error instanceof Error ? error.message : String(error)
         if (indexOperation === operation) indexOperation = undefined
         settleTrailingSync()
       }
       const requestAutoIndexSync = (): void => {
+        if (coordinatorDisposed) return
         if (indexOperation) { indexTrailingSync = true; return }
         if (indexDebounceTimer) clearTimeout(indexDebounceTimer)
         indexDebounceTimer = setTimeout(() => { indexDebounceTimer = undefined; void runAutoIndexSync() }, INDEX_SYNC_DEBOUNCE_MS)
@@ -542,6 +583,7 @@ export function apply(ctx: Context): void {
       }
       /** One automatic reconcile pass. Single flight; explicit routes share `indexOperation`. */
       const runAutoIndexSync = async (): Promise<void> => {
+        if (coordinatorDisposed) return
         if (indexDebounceTimer) { clearTimeout(indexDebounceTimer); indexDebounceTimer = undefined }
         if (indexOperation) { indexTrailingSync = true; return }
         const operation = beginOperation('syncing')
@@ -559,6 +601,7 @@ export function apply(ctx: Context): void {
               indexOperation = undefined; indexTerminal = undefined; indexError = undefined
               // Still give Lifetime one reconciliation chance (e.g. startup).
               void refreshLifetimeLedger()
+              settleTrailingSync()
               return
             }
             promise = incrementSessionUsageIndex(sessionQuery, usageIndex, {
@@ -569,12 +612,14 @@ export function apply(ctx: Context): void {
               onProgress: (next) => { if (indexOperation === operation) operation.progress = { ...next, status: 'syncing' } },
             })
           } else {
-            // First construction remains an explicit user action. Automatically
-            // scanning the complete history five seconds after startup would
-            // merely move the UI freeze away from panel-open rather than remove
-            // it. Once persisted, all later convergence is automatic/incremental.
+            // Full historical backfill remains explicit. Lifetime can still
+            // credit live sessions and freshly closed IDs without constructing
+            // the usage index or reading unrelated historical logs.
+            operation.promise = refreshLifetimeLedger()
+            await operation.promise
             if (ownsOperation(operation)) indexOperation = undefined
             indexTerminal = undefined; indexError = undefined
+            settleTrailingSync()
             return
           }
           operation.promise = promise
@@ -695,9 +740,13 @@ export function apply(ctx: Context): void {
               json(res, 400, { error: 'prompt must be a non-empty string' })
               return
             }
+            const template = typeof body.template === 'string' ? body.template : undefined
+            // Always apply the local optimizer rules. A custom template remains
+            // additional user guidance; it is never discarded or used to bypass
+            // intent/constraint preservation rules.
             const request = {
-              prompt: body.prompt,
-              template: typeof body.template === 'string' ? body.template : undefined,
+              prompt: buildPromptOptimizerInput(body.prompt, template),
+              template: undefined,
               provider: typeof body.provider === 'string' ? body.provider : undefined,
               model: typeof body.model === 'string' ? body.model : undefined,
             }
@@ -726,9 +775,7 @@ export function apply(ctx: Context): void {
               json(res, 503, { error: 'no promptEnhancer adapter or resolvable DSH provider/model is available', provider, model })
               return
             }
-            const framed = request.template?.includes('{{prompt}}')
-              ? request.template.replaceAll('{{prompt}}', request.prompt)
-              : `${request.template ?? '请优化以下提示词，保留原意并提升清晰度：'}\n\n${request.prompt}`
+            const framed = request.prompt
             let enhanced = ''
             for await (const chunk of llm.stream({
               provider,
@@ -978,6 +1025,7 @@ export function apply(ctx: Context): void {
       indexFallbackTimer.unref?.()
 
       return () => {
+        coordinatorDisposed = true
         indexScheduler.notify = undefined
         if (indexStartupTimer) { clearTimeout(indexStartupTimer); indexStartupTimer = undefined }
         if (indexFallbackTimer) { clearInterval(indexFallbackTimer); indexFallbackTimer = undefined }

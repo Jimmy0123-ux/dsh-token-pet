@@ -1,6 +1,13 @@
 import { LIFETIME_CLEAR_CONFIRMATION } from '../lifetime-contract.ts'
 
-export const LIFETIME_LEDGER_CLEAR_WARNING = '此操作会永久清空终身用量账本历史，无法通过“恢复记录”找回。普通清空、恢复和刷新不会影响账本。'
+import type { Language } from './i18n.ts'
+import { maintenanceText } from './maintenance-messages.ts'
+
+export function lifetimeLedgerClearWarning(language: Language = 'zh'): string {
+  return maintenanceText(language, 'lifetimeClearWarning')
+}
+/** Legacy Chinese text retained; the request confirmation remains a machine token. */
+export const LIFETIME_LEDGER_CLEAR_WARNING = lifetimeLedgerClearWarning('zh')
 
 /** The destructive request is isolated from cumulative reset/restore APIs. */
 export async function clearLifetimeLedger(fetcher: typeof fetch = fetch): Promise<boolean> {

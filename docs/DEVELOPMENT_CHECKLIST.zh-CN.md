@@ -4,12 +4,12 @@
 
 ## 当前版本状态
 
-- 仓库：`Jimmy0123-ux/dsh-token-pet`（当前 Private）；
+- 仓库：`Jimmy0123-ux/dsh-token-pet`（Public）；已发布版本 `0.1.1`；
 - 运行目标：DSH Desktop Web GUI；
 - 角色：单一固定身份；
 - 动作：12 个正式动作，全部 32 帧；
 - 发布包：约 16.4MiB 压缩 / 22MiB 解包；
-- 自动化测试：126 项；
+- 自动化测试：当前工作区 149 项通过（已发布 0.1.1 基线为 126 项）；
 - 文档与动作媒体：已生成；
 - Review 生产源：仅本地保留，不提交 GitHub。
 
@@ -92,17 +92,19 @@
 - [x] `npm pack --dry-run --json`；
 - [x] README 媒体生成与完整性检查；
 - [x] 克隆仓库无 Review 时测试可通过；
-- [ ] 配置 GitHub Actions：typecheck、test、audit、build、pack dry-run；
+- [x] GitHub Actions：Ubuntu / Node 22.19.0，typecheck、test、audit、build、pack dry-run；
 - [ ] 增加 Windows DSH Desktop 重启后烟雾测试记录。
 
 ## G. 仓库质量与分享
 
-- [x] 创建 Private GitHub 仓库；
+- [x] 创建并公开 GitHub 仓库，发布 npm 包与 GitHub Release；
 - [x] 完善 README、界面示意、动作总览和动作 GIF；
 - [x] 发布包去除 sourcemap与重复资源；
-- [x] README 提供源码 link、私有 GitHub 和 tgz 安装方式；
+- [x] README 提供市场、npm、公开 GitHub 源码 link 和 tgz 安装方式；
 - [ ] 用脱敏的真实 DSH 运行截图替换 README 界面示意图；
-- [ ] 配置 GitHub Actions；
+- [x] 配置 GitHub Actions；
+- [ ] 获得线上更新授权后，修正市场目录仍指向 0.1.0 的备用 tgz 链接；
+- [ ] 发布统计归属修复前，制定已持久化错误账目的备份和迁移方案，不能直接重算单调账本；
 - [ ] 完成 24 小时性能回归；
 - [ ] 完成许可证与素材授权审查；
 - [ ] 在另一台 Windows/DSH Desktop 上验证安装、更新和卸载。
@@ -110,8 +112,9 @@
 ## 推荐后续顺序
 
 ```text
-真实脱敏截图
-→ GitHub Actions
+本地回归验证与旧账迁移评估
+→ 获授权后发布并核对市场元数据
+→ 真实脱敏截图
 → 24 小时稳定性测试
 → 许可证/素材授权确认
 → 跨机器安装与更新验收
