@@ -9,6 +9,9 @@ import type { Language } from '../src/client/i18n.ts'
 // Isolated synthetic fixture: no host/session data or audio is accessed.
 window.fetch = async () => new Response(JSON.stringify({}), { status: 200, headers: { 'Content-Type': 'application/json' } })
 localStorage.clear()
+// Default fixture theme is dark (regression baseline); TP_THEME=light flips it.
+const fixtureTheme = new URLSearchParams(location.search).get('theme') === 'light' ? 'light' : 'dark'
+saveSettings({ theme: fixtureTheme })
 const totals = { uncachedInputTokens: 123400, outputTokens: 23500, cacheReadTokens: 54000, cacheWriteTokens: 2100 }
 const byModel = Array.from({ length: 7 }, (_, i) => ({ provider: i === 0 ? 'Long-User-Provider-Name-1234567890' : `Provider ${i}`, model: i === 0 ? 'a-very-long-custom-model-identifier-with-important-version-and-context-window-information-2026' : `Model ${i}`, total: 180000 - i * 19000 }))
 const ledger = { sessions: 32, total: 203000, totals, byModel, byModelDay: byModel.map(m => ({ ...m, day: '2026-03-03', totals })) }

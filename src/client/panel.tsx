@@ -389,7 +389,7 @@ function summaryCell(label: string, value: string) {
 const root: import('react').CSSProperties = { position: 'relative', display: 'flex', flexDirection: 'column', minWidth: 0, minHeight: 0, boxSizing: 'border-box', overflow: 'hidden', borderRadius: 16, border: '1px solid var(--tp-border-strong)', background: 'var(--tp-panel-bg)', color: 'var(--tp-text)', fontSize: 12, lineHeight: 1.5, boxShadow: 'var(--tp-shadow)', userSelect: 'text', maxWidth: '100%', overflowWrap: 'anywhere' }
 const tabBar: import('react').CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(3,minmax(0,1fr))', gap: 4, flex: 'none', padding: '8px 10px', borderBottom: '1px solid var(--tp-border-2)', background: 'var(--tp-tab-bg)' }
 const tabButton: import('react').CSSProperties = { minWidth: 0, padding: '7px 5px', border: '1px solid transparent', borderRadius: 8, color: 'var(--tp-text-2)', background: 'transparent', cursor: 'pointer', fontSize: 12, fontWeight: 600 }
-const activeTabButton: import('react').CSSProperties = { color: 'var(--tp-on-accent)', borderColor: 'var(--tp-border-strong)', background: 'var(--tp-accent-soft-2)', boxShadow: 'inset 0 0 0 1px var(--tp-border-strong)' }
+const activeTabButton: import('react').CSSProperties = { color: 'var(--tp-accent)', borderColor: 'var(--tp-border-strong)', background: 'var(--tp-accent-soft-2)', boxShadow: 'inset 0 0 0 1px var(--tp-border-strong)' }
 const scroller: import('react').CSSProperties = { flex: '1 1 auto', minWidth: 0, minHeight: 0, overflowY: 'auto', overflowX: 'hidden', overscrollBehavior: 'contain', scrollbarGutter: 'stable', padding: '12px 12px 56px', scrollPaddingBlock: '12px 56px', touchAction: 'pan-y' }
 const pageStack: import('react').CSSProperties = { display: 'flex', flexDirection: 'column', gap: 10, minWidth: 0 }
 const card: import('react').CSSProperties = { boxSizing: 'border-box', minWidth: 0, padding: 11, borderRadius: 11, border: '1px solid var(--tp-border)', background: 'var(--tp-card-bg)' }
@@ -416,7 +416,7 @@ const modelCost: import('react').CSSProperties = { color: 'var(--tp-success)', w
 const modelCostLine: import('react').CSSProperties = { color: 'var(--tp-success)', fontSize: 10, marginTop: 4 }
 const rangeGroup: import('react').CSSProperties = { display: 'flex', gap: 4, flexWrap: 'wrap' }
 const rangeButton = (active: boolean): import('react').CSSProperties => ({
-  color: active ? 'var(--tp-on-accent)' : 'var(--tp-text-2)', background: active ? 'var(--tp-accent-soft-2)' : 'transparent',
+  color: active ? 'var(--tp-accent)' : 'var(--tp-text-2)', background: active ? 'var(--tp-accent-soft-2)' : 'transparent',
   border: active ? '1px solid var(--tp-border-strong)' : '1px solid var(--tp-border-2)',
   borderRadius: 6, padding: '2px 7px', cursor: 'pointer', fontSize: 10,
 })

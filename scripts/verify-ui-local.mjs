@@ -37,7 +37,7 @@ try {
   }
   await cdp('Page.enable')
   await cdp('Emulation.setDeviceMetricsOverride', { width: 900, height: 760, deviceScaleFactor: 1, mobile: false })
-  await cdp('Page.navigate', { url: pathToFileURL(join(out, 'index.html')).href })
+  await cdp('Page.navigate', { url: `${pathToFileURL(join(out, 'index.html')).href}?theme=${process.env.TP_THEME === 'light' ? 'light' : 'dark'}` })
   for (let i = 0; i < 100; i++) { if (await evaluate('typeof window.showPanel === "function"')) break; await delay(50) }
   const reports = []
   for (const width of [500, 360, 180]) for (const language of ['zh', 'en']) for (const tab of ['overview', 'models', 'settings']) {
