@@ -15,7 +15,12 @@
  * color/style overrides so the skin pipeline is testable end-to-end.
  */
 
-import { strFromU8, unzip, type Unzipped } from 'fflate'
+// Use fflate's browser entry (`fflate/browser`, esm/browser.js): the node
+// entry (`esm/index.mjs`) is what tsdown resolves by default and it drags in
+// Node-only `worker_threads` + `module.createRequire` code at module top
+// level, which DSH's browser module loader cannot satisfy. The browser build
+// is a standalone inflate/deflate implementation with zero Node references.
+import { strFromU8, unzip, type Unzipped } from 'fflate/browser'
 
 import type { PetAction } from './events.ts'
 import type { PetStage } from './derive.ts'

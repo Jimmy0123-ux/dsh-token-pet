@@ -33,8 +33,10 @@ export default defineConfig({
     // DepsPlugin externalizes anything in package.json `dependencies` by
     // default, so we force it to inline fflate here. The loader only resolves
     // the explicitly registered platform entries above; nothing else may leak
-    // a bare require into the bundle.
-    alwaysBundle: ['fflate'],
+    // a bare require into the bundle. skin.ts imports 'fflate/browser' so the
+    // inlined code is the Node-free browser build (no worker_threads /
+    // module.createRequire at top level).
+    alwaysBundle: ['fflate', 'fflate/browser'],
   },
   define: {
     'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV ?? 'production'),

@@ -6,11 +6,16 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ### Fixed
 
-- **客户端皮肤 ZIP 导入现在真正内联 fflate**（重要）：上一版把 `fflate` 加入 `dependencies` 后，tsdown 的 DepsPlugin 默认会把生产依赖 externalize 成 `require("fflate")`，而 DSH 的客户端模块加载器不识别该入口，导致 `failed to import loader entry … require("fflate") missed the module table`，皮肤功能/客户端整体失效。现在在 `tsdown.config.mjs` 显式 `deps.alwaysBundle: ['fflate']`，把 fflate 源码真正打进自包含的 `client.js`，不再残留裸 `require`。
+- **客户端皮肤 ZIP 导入现在真正内联 fflate 的浏览器入口**（重要，分两步修复）：
+  1. 上一版把 `fflate` 加入 `dependencies` 后，tsdown 的 DepsPlugin 默认会把生产依赖 externalize 成 `require("fflate")`，而 DSH 的客户端模块加载器不识别该入口，导致 `failed to import loader entry … require("fflate") missed the module table`。在 `tsdown.config.mjs` 增加 `deps.alwaysBundle` 强制内联后，tsdown 默认解析到 fflate 的 **node 入口**（`esm/index.mjs`），其模块顶层含有 Node 专属的 `worker_threads` / `module.createRequire` 代码，在 DSH 浏览器加载器中仍会初始化失败。
+  2. 现改为显式导入 **`fflate/browser`**（`esm/browser.js`，Node-free 的独立 inflate/deflate 实现），并把 `fflate/browser` 加入 `deps.alwaysBundle`。最终 `client.js` 中只保留平台种子词 `react` / `react-dom` 两个 `require`，无 `worker_threads`、无 `createRequire`、无任何裸第三方依赖。
+- 新增 DSH loader 语义模拟验证：以真实 `__ModuleLoader__.load` 工厂调用 client bundle，证明加载初始化无 missed-module 崩溃。
 
 ### Validation
 
-- TypeScript host/client typecheck 通过；`npm test` 208/208 通过；资源审计、构建与打包通过；`client.js` 中不再出现 `require("fflate")`。
+- TypeScript host/client typecheck 通过；`npm test` 208/208 通过；资源审计、构建与打包通过；
+- `client.js` require 扫描：仅 `react` / `react-dom`，`worker_threads` / `createRequire` 为 0；
+- `scripts/verify-ui-local.mjs` 真实 headless Chrome 验收通过（500/360/180px × 中英 × 三标签布局无溢出；宠物/面板热切换、完成提示音 11 项浏览器调度检查全过）。
 
 ## [0.3.1] - 2026-09-18
 
