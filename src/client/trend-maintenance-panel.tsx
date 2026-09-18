@@ -109,13 +109,13 @@ export function TrendIndexMaintenancePanel({ language: explicitLanguage }: { lan
     h('div', { key: 'actions', style: { display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 8 } }, [
       h('button', {
         key: 'rebuild', type: 'button', disabled: requesting || running, onClick: () => { void rebuild() },
-        style: { color: 'var(--tp-text) !important', maxWidth: '100%', whiteSpace: 'normal', padding: '5px 9px', borderRadius: 7, border: '1px solid var(--tp-warn-border)', background: 'var(--tp-warn-bg)', cursor: requesting || running ? 'not-allowed' : 'pointer' },
+        style: { color: '#e8eaf2', maxWidth: '100%', whiteSpace: 'normal', padding: '5px 9px', borderRadius: 7, border: '1px solid rgba(210,128,64,.55)', background: 'rgba(210,128,64,.12)', cursor: requesting || running ? 'not-allowed' : 'pointer' },
       }, maintenanceText(language, 'rebuildAction')),
       status?.cancelSupported ? h('button', {
         key: 'cancel', type: 'button', disabled: requesting, onClick: () => { void cancel() },
-        style: { color: 'var(--tp-text) !important', maxWidth: '100%', whiteSpace: 'normal', padding: '5px 9px', borderRadius: 7, border: '1px solid var(--tp-border-2)', background: 'var(--tp-accent-soft)' },
+        style: { color: '#e8eaf2', maxWidth: '100%', whiteSpace: 'normal', padding: '5px 9px', borderRadius: 7, border: '1px solid rgba(128,128,160,.36)', background: 'rgba(128,128,160,.12)' },
       }, maintenanceText(language, 'cancelAction')) : null,
-      h('button', { key: 'refresh', type: 'button', disabled: requesting, onClick: () => { void load() }, style: { color: 'var(--tp-text) !important', maxWidth: '100%', whiteSpace: 'normal', padding: '5px 9px', borderRadius: 7, border: '1px solid var(--tp-border-2)', background: 'var(--tp-accent-soft)' } }, maintenanceText(language, 'refreshAction')),
+      h('button', { key: 'refresh', type: 'button', disabled: requesting, onClick: () => { void load() }, style: { color: '#e8eaf2', maxWidth: '100%', whiteSpace: 'normal', padding: '5px 9px', borderRadius: 7, border: '1px solid rgba(128,128,160,.36)', background: 'rgba(128,128,160,.12)' } }, maintenanceText(language, 'refreshAction')),
     ]),
     feedback ? h('div', { key: 'feedback', role: feedback.level === 'error' ? 'alert' : 'status', style: { marginTop: 6, fontSize: 12 } }, maintenanceFeedbackText(language, feedback)) : null,
   ])

@@ -76,9 +76,9 @@ export function SkinImportPanel(p: { onImport?: (bundle: ImportedSkinBundle) => 
     h('div', { key: 'file', style: { display: 'grid', gap: 5, minWidth: 0 } }, [
       h('span', { key: 'label' }, skinText(language, 'importZip')),
       h('input', { key: 'input', ref: fileInput, type: 'file', style: { display: 'none' }, tabIndex: -1, 'aria-hidden': true, accept: '.zip,application/zip', onChange: onFile }),
-      h('button', { key: 'choose', type: 'button', onClick: () => fileInput.current?.click(), 'aria-label': skinText(language, 'importZip'), style: { color: 'var(--tp-text) !important', background: 'var(--tp-input-bg)', border: '1px solid var(--tp-border-2)', padding: 7, borderRadius: 6, maxWidth: '100%', whiteSpace: 'normal', cursor: 'pointer' } }, skinText(language, 'chooseFile')),
+      h('button', { key: 'choose', type: 'button', onClick: () => fileInput.current?.click(), 'aria-label': skinText(language, 'importZip'), style: { color: '#e8eaf2', background: 'rgba(128,128,160,.08)', border: '1px solid rgba(128,128,160,.35)', padding: 7, borderRadius: 6, maxWidth: '100%', whiteSpace: 'normal', cursor: 'pointer' } }, skinText(language, 'chooseFile')),
     ]),
-    h('label', { key: 'select', style: { display: 'grid', gap: 5, minWidth: 0 } }, [skinText(language, 'currentSkin') + ' ', h('select', { key: 'select', style: { width: '100%', maxWidth: '100%', minWidth: 0, boxSizing: 'border-box', color: 'inherit', background: 'var(--tp-input-bg)', padding: 7, borderRadius: 6, border: '1px solid var(--tp-border-2)' }, value: selected, onChange: (event: { target: { value: string } }) => choose(event.target.value) }, [
+    h('label', { key: 'select', style: { display: 'grid', gap: 5, minWidth: 0 } }, [skinText(language, 'currentSkin') + ' ', h('select', { key: 'select', style: { width: '100%', maxWidth: '100%', minWidth: 0, boxSizing: 'border-box', color: '#e8eaf2', background: 'rgba(128,128,160,.08)', padding: 7, borderRadius: 6, border: '1px solid rgba(128,128,160,.35)' }, value: selected, onChange: (event: { target: { value: string } }) => choose(event.target.value) }, [
       h('option', { key: 'default', value: 'default' }, skinText(language, 'defaultSkin')),
       ...allSkins.map((skin) => {
         const name = skinDisplayName(skin, language)

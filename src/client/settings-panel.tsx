@@ -13,8 +13,8 @@ import { exportLedgerCsv, exportLedgerJson } from './export-data.ts'
 
 const fieldStyle = { display: 'grid', gap: 5, minWidth: 0 }
 const inputStyle = { margin: 0, width: '100%', minWidth: 0, maxWidth: '100%', boxSizing: 'border-box' as const, color: 'inherit', background: 'var(--tp-input-bg)', border: '1px solid var(--tp-border-2)', borderRadius: 6, padding: 7, font: 'inherit' }
-const buttonStyle = { padding: '6px 9px', borderRadius: 7, border: '1px solid var(--tp-border-2)', background: 'var(--tp-accent-soft)', color: 'var(--tp-text) !important', cursor: 'pointer', maxWidth: '100%', whiteSpace: 'normal' as const, overflowWrap: 'anywhere' as const }
-const removeButtonStyle = { flex: '0 0 auto', width: 26, height: 26, padding: 0, borderRadius: 7, border: '1px solid var(--tp-danger-border)', background: 'var(--tp-danger-bg)', color: 'var(--tp-danger-2)', cursor: 'pointer', fontSize: 12, lineHeight: 1 }
+const buttonStyle = { padding: '6px 9px', borderRadius: 7, border: '1px solid rgba(128,128,160,.36)', background: 'rgba(124,150,255,.1)', color: '#e8eaf2', cursor: 'pointer', maxWidth: '100%', whiteSpace: 'normal' as const, overflowWrap: 'anywhere' as const }
+const removeButtonStyle = { flex: '0 0 auto', width: 26, height: 26, padding: 0, borderRadius: 7, border: '1px solid rgba(255,100,80,.5)', background: 'rgba(180,42,42,.2)', color: '#ffc4ba', cursor: 'pointer', fontSize: 12, lineHeight: 1 }
 
 /** Visual, no-JSON price editor: model key + four rate inputs per row. */
 function PriceTableEditor(p: { language: Language; value: string; onSave: (json: string) => void; onReset: () => void }) {
