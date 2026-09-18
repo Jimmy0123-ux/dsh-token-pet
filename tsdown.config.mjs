@@ -28,9 +28,13 @@ export default defineConfig({
   clean: true,
   deps: {
     neverBundle: PLATFORM_EXTERNALS,
-    // Everything else (including fflate, used by the client-side skin ZIP
-    // import) is bundled into the self-contained client.js. The loader only
-    // resolves the explicitly registered platform entries above.
+    // fflate (used by the client-side skin ZIP import) must be BUNDLED into
+    // the self-contained client.js, not left as a runtime require. tsdown's
+    // DepsPlugin externalizes anything in package.json `dependencies` by
+    // default, so we force it to inline fflate here. The loader only resolves
+    // the explicitly registered platform entries above; nothing else may leak
+    // a bare require into the bundle.
+    alwaysBundle: ['fflate'],
   },
   define: {
     'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV ?? 'production'),

@@ -2,6 +2,16 @@
 
 All notable changes to this project are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Semantic Versioning](https://semver.org/).
 
+## [0.3.2] - 2026-09-18
+
+### Fixed
+
+- **客户端皮肤 ZIP 导入现在真正内联 fflate**（重要）：上一版把 `fflate` 加入 `dependencies` 后，tsdown 的 DepsPlugin 默认会把生产依赖 externalize 成 `require("fflate")`，而 DSH 的客户端模块加载器不识别该入口，导致 `failed to import loader entry … require("fflate") missed the module table`，皮肤功能/客户端整体失效。现在在 `tsdown.config.mjs` 显式 `deps.alwaysBundle: ['fflate']`，把 fflate 源码真正打进自包含的 `client.js`，不再残留裸 `require`。
+
+### Validation
+
+- TypeScript host/client typecheck 通过；`npm test` 208/208 通过；资源审计、构建与打包通过；`client.js` 中不再出现 `require("fflate")`。
+
 ## [0.3.1] - 2026-09-18
 
 ### Fixed
@@ -120,7 +130,8 @@ All notable changes to this project are documented here. The format follows [Kee
 - npm package installs with host entry, web client bundle, and `cordis.patch.yml` present.
 - GitHub CI passes on the public `main` branch.
 
-[Unreleased]: https://github.com/Jimmy0123-ux/dsh-token-pet/compare/v0.3.1...HEAD
+[Unreleased]: https://github.com/Jimmy0123-ux/dsh-token-pet/compare/v0.3.2...HEAD
+[0.3.2]: https://github.com/Jimmy0123-ux/dsh-token-pet/compare/v0.3.1...v0.3.2
 [0.3.1]: https://github.com/Jimmy0123-ux/dsh-token-pet/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/Jimmy0123-ux/dsh-token-pet/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/Jimmy0123-ux/dsh-token-pet/releases/tag/v0.2.0
