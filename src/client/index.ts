@@ -1192,7 +1192,7 @@ const stageChip: CSSProperties = {
 
 const actionBar: CSSProperties = { display: 'flex', alignItems: 'center', gap: 5, minWidth: 0, flexShrink: 0 }
 const actionBtn: CSSProperties = {
-  color: 'var(--tp-text-2)',
+  color: 'var(--tp-text-2) !important',
   background: 'var(--tp-solid)',
   border: '1px solid var(--tp-border-2)',
   borderRadius: 8,
@@ -1205,8 +1205,8 @@ const actionBtn: CSSProperties = {
   boxShadow: 'var(--tp-shadow-2)',
   whiteSpace: 'nowrap',
 }
-const enhanceActionBtn: CSSProperties = { color: 'var(--tp-on-accent)', background: 'linear-gradient(135deg,rgba(98,124,255,.85),rgba(128,105,217,.85))', borderColor: 'var(--tp-border-strong)', fontWeight: 700 }
-const enhanceActionBtnOpen: CSSProperties = { color: 'var(--tp-on-accent)', boxShadow: '0 0 0 2px var(--tp-border-strong),var(--tp-shadow-2)' }
+const enhanceActionBtn: CSSProperties = { color: 'var(--tp-on-accent) !important', background: 'linear-gradient(135deg,rgba(98,124,255,.85),rgba(128,105,217,.85))', borderColor: 'var(--tp-border-strong)', fontWeight: 700 }
+const enhanceActionBtnOpen: CSSProperties = { color: 'var(--tp-on-accent) !important', boxShadow: '0 0 0 2px var(--tp-border-strong),var(--tp-shadow-2)' }
 const promptDrawer: CSSProperties = { position: 'absolute', zIndex: 6, boxSizing: 'border-box', background: 'var(--tp-panel-bg)', border: '1px solid var(--tp-border-strong)', boxShadow: '-12px 0 30px var(--tp-shadow)', transition: 'transform .2s ease,opacity .2s ease,visibility .2s ease', opacity: 0, visibility: 'hidden', pointerEvents: 'none', overflow: 'hidden' }
 const promptDrawerRight: CSSProperties = { top: 42, right: 0, bottom: 0, width: 'min(82%, 460px)', borderRadius: '14px 0 14px 14px' }
 const promptDrawerBottom: CSSProperties = { left: 0, right: 0, bottom: 0, maxHeight: '74%', borderRadius: '14px 14px 0 0', boxShadow: '0 -12px 30px var(--tp-shadow)' }

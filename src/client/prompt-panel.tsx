@@ -12,8 +12,8 @@ const promptHeader = { display: 'flex', alignItems: 'center', justifyContent: 's
 const promptTitle = { color: 'var(--tp-text)', fontSize: 12, fontWeight: 600, letterSpacing: '.01em' }
 const promptHint = { color: 'var(--tp-text-2)', fontSize: 10 }
 const editorStyle = { width: '100%', boxSizing: 'border-box' as const, resize: 'vertical' as const, display: 'block', padding: '8px 9px', borderRadius: 8, border: '1px solid var(--tp-border-strong)', background: 'var(--tp-card-bg)', color: 'var(--tp-text)', caretColor: 'var(--tp-accent)', fontFamily: 'inherit', fontSize: 12, lineHeight: 1.5, outline: 'none' }
-const secondaryButton = { color: 'var(--tp-text)', background: 'var(--tp-accent-soft)', border: '1px solid var(--tp-border-strong)', borderRadius: 7, padding: '5px 9px', fontSize: 11, cursor: 'pointer', transition: 'background .15s ease, border-color .15s ease' }
-const primaryButton = { ...secondaryButton, color: 'var(--tp-on-accent)', background: 'linear-gradient(135deg, #627cff, #8069d9)', borderColor: 'var(--tp-border-strong)', fontWeight: 600 }
+const secondaryButton = { color: 'var(--tp-text) !important', background: 'var(--tp-accent-soft)', border: '1px solid var(--tp-border-strong)', borderRadius: 7, padding: '5px 9px', fontSize: 11, cursor: 'pointer', transition: 'background .15s ease, border-color .15s ease' }
+const primaryButton = { ...secondaryButton, color: 'var(--tp-on-accent) !important', background: 'linear-gradient(135deg, #627cff, #8069d9)', borderColor: 'var(--tp-border-strong)', fontWeight: 600 }
 export function PromptEnhancerPanel(p: {
   language?: Language
   initial?: string
