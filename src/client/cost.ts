@@ -193,3 +193,72 @@ export function formatCost(usd: number, currency: CostCurrency = 'USD', cnyRate 
 export function isCostCurrency(value: unknown): value is CostCurrency {
   return value === 'USD' || value === 'CNY'
 }
+
+// ---- Visual price editor draft helpers (pure, UI-agnostic) ----
+
+/** One editable price row in the Settings price editor. Values are strings so
+ * the input fields never fight the user mid-typing; validation happens on save. */
+export interface PriceDraftRow {
+  id: string
+  /** Model name or `*`-suffixed prefix (e.g. "deepseek-chat", "claude-*"). */
+  key: string
+  input: string
+  cacheRead: string
+  cacheWrite: string
+  output: string
+}
+
+function numberString(n: number): string {
+  return Number.isFinite(n) ? String(n) : '0'
+}
+
+/** Turn a persisted price-table JSON into editable rows (newest order kept). */
+export function priceRowsFromJson(json: string): PriceDraftRow[] {
+  const table = parsePriceTable(json) ?? DEFAULT_PRICES
+  return Object.entries(table).map(([key, entry], index) => ({
+    id: `${index}-${key}`,
+    key,
+    input: numberString(entry.input),
+    cacheRead: numberString(entry.cacheRead),
+    cacheWrite: numberString(entry.cacheWrite),
+    output: numberString(entry.output),
+  }))
+}
+
+function isNonNegativeString(value: string): boolean {
+  return value.trim() !== '' && Number.isFinite(Number(value)) && Number(value) >= 0
+}
+/** Export for UI input validation (used by the price editor to flag bad rows). */
+export { isNonNegativeString }
+
+/** Validate rows: a row is valid when its key is non-empty and all four rates
+ * are non-negative numbers. Returns the buildable table and the invalid rows. */
+export function tableFromDraftRows(rows: readonly PriceDraftRow[]): { table: PriceTable; invalid: PriceDraftRow[] } {
+  const table: PriceTable = {}
+  const invalid: PriceDraftRow[] = []
+  for (const row of rows) {
+    const key = row.key.trim()
+    // A bare `*` is the universal fallback; otherwise an alphanumeric start
+    // with letters/digits/._- and an optional trailing `*` prefix wildcard.
+    const validKey = key === '*' || /^[a-z0-9][a-z0-9._-]*\*?$/i.test(key)
+    if (!validKey || !isNonNegativeString(row.input) || !isNonNegativeString(row.output) ||
+      !isNonNegativeString(row.cacheRead) || !isNonNegativeString(row.cacheWrite)) {
+      invalid.push(row)
+      continue
+    }
+    table[key] = {
+      input: Number(row.input),
+      output: Number(row.output),
+      cacheRead: Number(row.cacheRead),
+      cacheWrite: Number(row.cacheWrite),
+    }
+  }
+  return { table, invalid }
+}
+
+/** Serialize valid draft rows back to the persisted JSON form (stable key order). */
+export function draftRowsToJson(rows: readonly PriceDraftRow[]): { json: string | null; invalid: PriceDraftRow[] } {
+  const { table, invalid } = tableFromDraftRows(rows)
+  if (Object.keys(table).length === 0) return { json: null, invalid: rows as PriceDraftRow[] }
+  return { json: JSON.stringify(table, null, 2), invalid }
+}

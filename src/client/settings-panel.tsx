@@ -7,12 +7,71 @@ import { prepareCompletionSound, previewCompletionSound, stopCompletionSound } f
 import { SkinImportPanel } from './skin-panel.tsx'
 import { PET_PREVIEW_EVENT, type PetAction } from './events.ts'
 import { TrendIndexMaintenancePanel } from './trend-maintenance-panel.tsx'
-import { DEFAULT_PRICE_TABLE_JSON } from './cost.ts'
+import { DEFAULT_PRICE_TABLE_JSON, draftRowsToJson, isNonNegativeString, priceRowsFromJson, type PriceDraftRow } from './cost.ts'
 import { exportLedgerCsv, exportLedgerJson } from './export-data.ts'
 
 const fieldStyle = { display: 'grid', gap: 5, minWidth: 0 }
 const inputStyle = { margin: 0, width: '100%', minWidth: 0, maxWidth: '100%', boxSizing: 'border-box' as const, color: 'inherit', background: 'rgba(128,128,160,.08)', border: '1px solid rgba(128,128,160,.35)', borderRadius: 6, padding: 7, font: 'inherit' }
 const buttonStyle = { padding: '6px 9px', borderRadius: 7, border: '1px solid rgba(128,128,160,.36)', background: 'rgba(128,128,160,.12)', color: 'inherit', cursor: 'pointer', maxWidth: '100%', whiteSpace: 'normal' as const, overflowWrap: 'anywhere' as const }
+const removeButtonStyle = { flex: '0 0 auto', width: 26, height: 26, padding: 0, borderRadius: 7, border: '1px solid rgba(255,100,80,.5)', background: 'rgba(180,42,42,.2)', color: '#ffc4ba', cursor: 'pointer', fontSize: 12, lineHeight: 1 }
+
+/** Visual, no-JSON price editor: model key + four rate inputs per row. */
+function PriceTableEditor(p: { language: Language; value: string; onSave: (json: string) => void; onReset: () => void }) {
+  const t = (key: keyof typeof settingsMessages, params = {}) => translate(p.language, settingsMessages, key, params)
+  const [rows, setRows] = useState<PriceDraftRow[]>(() => priceRowsFromJson(p.value))
+  const [status, setStatus] = useState<'idle' | 'saved' | 'invalid'>('idle')
+  const [invalidCount, setInvalidCount] = useState(0)
+  useEffect(() => { setRows(priceRowsFromJson(p.value)) }, [p.value])
+  const update = (id: string, patch: Partial<PriceDraftRow>) => {
+    setStatus('idle')
+    setRows((current) => current.map((row) => row.id === id ? { ...row, ...patch } : row))
+  }
+  const add = () => {
+    setStatus('idle')
+    setRows((current) => [...current, { id: `${Date.now()}-${current.length}`, key: '', input: '', cacheRead: '', cacheWrite: '', output: '' }])
+  }
+  const remove = (id: string) => {
+    setStatus('idle')
+    setRows((current) => current.filter((row) => row.id !== id))
+  }
+  const save = () => {
+    const { json, invalid } = draftRowsToJson(rows)
+    if (json === null || invalid.length > 0) {
+      setInvalidCount(rows.length - (json === null ? 0 : rows.length - invalid.length))
+      setStatus('invalid')
+      return
+    }
+    p.onSave(json)
+    setStatus('saved')
+  }
+  const reset = () => {
+    setRows(priceRowsFromJson(DEFAULT_PRICE_TABLE_JSON))
+    p.onReset()
+    setStatus('idle')
+  }
+  const numeric = (row: PriceDraftRow, key: 'input' | 'output' | 'cacheRead' | 'cacheWrite', label: string) => h('input', {
+    key, type: 'number', min: 0, step: 'any', inputMode: 'decimal', 'aria-label': label, title: label, placeholder: '0',
+    value: row[key], style: { ...inputStyle, flex: '1 1 56px', minWidth: 0, ...(row[key] === '' || isNonNegativeString(row[key]) ? {} : { borderColor: 'rgba(255,100,80,.75)' }) },
+    onChange: (e: { target: { value: string } }) => update(row.id, { [key]: e.target.value }),
+  })
+  return h('div', { key: 'editor', style: { display: 'grid', gap: 6, minWidth: 0 } }, [
+    ...rows.map((row) => h('div', { key: row.id, style: { display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center', minWidth: 0, padding: 6, borderRadius: 8, background: 'rgba(128,128,160,.06)' } }, [
+      h('input', { key: 'key', type: 'text', placeholder: t('priceKeyPlaceholder'), 'aria-label': t('priceColModel'), title: t('priceColModel'), spellCheck: false, value: row.key, style: { ...inputStyle, flex: '1 1 100%', minWidth: 0, fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace', fontSize: 11 }, onChange: (e: { target: { value: string } }) => update(row.id, { key: e.target.value }) }),
+      numeric(row, 'input', t('priceColInput')),
+      numeric(row, 'output', t('priceColOutput')),
+      numeric(row, 'cacheRead', t('priceColCacheRead')),
+      numeric(row, 'cacheWrite', t('priceColCacheWrite')),
+      h('button', { key: 'remove', type: 'button', 'aria-label': t('removePriceRow'), title: t('removePriceRow'), onClick: () => remove(row.id), style: removeButtonStyle }, '✕'),
+    ])),
+    h('div', { key: 'actions', style: { display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center' } }, [
+      h('button', { key: 'add', type: 'button', style: buttonStyle, onClick: add }, t('addPriceRow')),
+      h('button', { key: 'save', type: 'button', style: { ...buttonStyle, borderColor: 'rgba(145,167,255,.55)', background: 'rgba(124,150,255,.16)' }, onClick: save }, t('savePrices')),
+      h('button', { key: 'reset', type: 'button', style: buttonStyle, onClick: reset }, t('resetPrices')),
+    ]),
+    status === 'saved' ? h('div', { key: 'status', role: 'status' }, t('pricesSaved'))
+      : status === 'invalid' ? h('div', { key: 'status', role: 'alert', style: { color: '#ffb4a8' } }, t('invalidPriceRows', { count: invalidCount })) : null,
+  ])
+}
 /** Both settings entry points subscribe to the same persisted preferences. */
 export function TokenPetSettingsPanel(p: { language?: Language }) {
   const shared = useSettings()
@@ -45,7 +104,6 @@ export function TokenPetSettingsPanel(p: { language?: Language }) {
     if (enabled) checkSound(false)
   }
   const [exportStatus, setExportStatus] = useState<'idle' | 'exported' | 'error'>(() => 'idle')
-  const [priceReset, setPriceReset] = useState(false)
   const exportRequest = useRef(0)
   const runExport = async (kind: 'json' | 'csv') => {
     const request = ++exportRequest.current
@@ -86,11 +144,8 @@ export function TokenPetSettingsPanel(p: { language?: Language }) {
       h('label', { key: 'budgetEnable', style: { display: 'flex', gap: 7 } }, [h('input', { key: 'input', type: 'checkbox', checked: s.budgetEnabled && s.costEnabled, disabled: !s.costEnabled, onChange: (e: { target: { checked: boolean } }) => patch({ budgetEnabled: e.target.checked }) }), t('budgetEnable')]),
       h('label', { key: 'budgetMonthly', style: fieldStyle }, [t('budgetMonthly'), h('input', { key: 'input', style: inputStyle, type: 'number', min: 0, max: 100000, step: 1, value: s.budgetMonthly, onChange: (e: { target: { value: string } }) => patch({ budgetMonthly: Number(e.target.value) }) })]),
       h('small', { key: 'budgetHint', style: { opacity: .8, lineHeight: 1.5 } }, t('budgetHint')),
-      h('label', { key: 'priceTable', style: fieldStyle }, [t('priceTable'), h('textarea', { key: 'input', rows: 8, spellCheck: false, style: { ...inputStyle, resize: 'vertical', fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace', fontSize: 11 }, value: s.priceTable, onChange: (e: { target: { value: string } }) => { setPriceReset(false); patch({ priceTable: e.target.value }) } })]),
-      h('div', { key: 'prices', style: { display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center' } }, [
-        h('button', { key: 'reset', type: 'button', style: buttonStyle, onClick: () => { patch({ priceTable: DEFAULT_PRICE_TABLE_JSON }); setPriceReset(true) } }, t('resetPrices')),
-        priceReset ? h('small', { key: 'done', role: 'status', style: { opacity: .8 } }, t('priceReset')) : null,
-      ]),
+      h('label', { key: 'priceTable', style: fieldStyle }, [t('priceTable')]),
+      h(PriceTableEditor, { key: 'editor', language: s.language, value: s.priceTable, onSave: (json) => patch({ priceTable: json }), onReset: () => patch({ priceTable: DEFAULT_PRICE_TABLE_JSON }) }),
       h('small', { key: 'priceHint', style: { opacity: .8, lineHeight: 1.5 } }, t('priceTableHint')),
     ]),
     card('enhancement', [checkbox('enhancementEnabled', 'enabled'),

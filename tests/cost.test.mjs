@@ -10,6 +10,9 @@ import {
   parsePriceTable,
   resolvePrice,
   DEFAULT_PRICES,
+  DEFAULT_PRICE_TABLE_JSON,
+  draftRowsToJson,
+  priceRowsFromJson,
 } from '../src/client/cost.ts'
 
 const USAGE = { uncachedInputTokens: 1_000_000, outputTokens: 500_000, cacheReadTokens: 250_000, cacheWriteTokens: 0 }
@@ -70,4 +73,29 @@ test('formatCost renders USD and CNY', () => {
   assert.equal(formatCost(1.234, 'CNY'), '¥8.88')
   assert.equal(formatCost(-1), '—')
   assert.equal(formatCost(Number.NaN), '—')
+})
+
+test('price editor draft helpers round-trip the persisted table', () => {
+  const rows = priceRowsFromJson(DEFAULT_PRICE_TABLE_JSON)
+  assert.ok(rows.length >= 5, 'defaults produce editable rows')
+  assert.equal(rows.find((row) => row.key === 'deepseek-chat').input, '0.27')
+  const { json, invalid } = draftRowsToJson(rows)
+  assert.equal(invalid.length, 0)
+  assert.equal(parsePriceTable(json)['deepseek-reasoner'].input, 0.55)
+})
+
+test('price editor rejects rows with empty keys or bad numbers and flags them', () => {
+  const base = priceRowsFromJson(DEFAULT_PRICE_TABLE_JSON)
+  const rows = [
+    ...base.slice(0, 1),
+    { id: 'bad-key', key: '../escape', input: '1', output: '2', cacheRead: '0', cacheWrite: '0' },
+    { id: 'bad-num', key: 'gpt-5', input: '-1', output: '2', cacheRead: '0', cacheWrite: '0' },
+    { id: 'empty-key', key: '  ', input: '1', output: '2', cacheRead: '0', cacheWrite: '0' },
+  ]
+  const { json, invalid } = draftRowsToJson(rows)
+  assert.equal(invalid.length, 3)
+  assert.ok(json !== null && parsePriceTable(json)['deepseek-chat'] !== undefined, 'valid rows still serialize')
+  const empty = draftRowsToJson([{ id: 'x', key: 'k', input: 'nope', output: '2', cacheRead: '0', cacheWrite: '0' }])
+  assert.equal(empty.json, null)
+  assert.equal(empty.invalid.length, 1)
 })
