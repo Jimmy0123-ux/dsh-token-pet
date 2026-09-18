@@ -139,7 +139,7 @@ export function apply(ctx: Context): void {
   const trendBaselineRevisions = new Map<string, Promise<string | undefined>>()
   let trendReconcileRetry: ReturnType<typeof setTimeout> | undefined
   let trendPersistence: TrendPersistenceService | undefined
-  let trendMaintenanceResult: 'completed' | 'cancelled' | 'failed' | undefined
+  let trendMaintenanceResult: 'completed' | 'cancelled' | 'failed' | 'unsupported' | undefined
   let trendMaintenanceError: string | undefined
 
   const flushTrendEvents = (sessionId: string, revision: unknown): Promise<void> => {
@@ -163,6 +163,9 @@ export function apply(ctx: Context): void {
 
   const durableRevision = async (persistence: TrendPersistenceService, sessionId: string, previous?: string): Promise<unknown> => {
     for (let attempt = 0; attempt < 200; attempt++) {
+      if (typeof (persistence as { listSnapshots?: unknown }).listSnapshots !== 'function') {
+        throw new Error(`sessionPersistence does not expose listSnapshots; trend advancement is unavailable`)
+      }
       const snapshot = (await persistence.listSnapshots()).find(item => item.header.id === sessionId)
       if (snapshot && (previous === undefined || trendRevisionKey(snapshot.revision) !== previous)) return snapshot.revision
       await new Promise<void>(resolve => setTimeout(resolve, 10))
@@ -173,6 +176,11 @@ export function apply(ctx: Context): void {
   const flushAfterDurableFence = async (sessionId: string): Promise<void> => {
     if (!trendPersistence) return
     if (trendReconcileFlight) await trendReconcileFlight
+    // Hosts without listSnapshots cannot resolve durable revisions for trend
+    // advancement. Keep the fence non-throwing: it still returns promptly so
+    // session persistence never stalls; the manual "立即同步/重建" path surfaces
+    // a clear unsupported message instead of spamming the error log.
+    if (typeof (trendPersistence as { listSnapshots?: unknown }).listSnapshots !== 'function') return
     const pending = trendPending.get(sessionId) ?? []
     const checkpoint = await hourlyTrend.checkpoint(sessionId)
     const maxPendingSeq = pending.reduce((max, event) => typeof event.seq === 'number' ? Math.max(max, event.seq) : max, -1)
@@ -204,6 +212,7 @@ export function apply(ctx: Context): void {
   function scheduleTrendRepair(sessionId: string, fromSeq: number): void {
     const persistence = trendPersistence
     if (!persistence || trendRepairFlights.has(sessionId) || trendRebuildFlight) return
+    if (typeof (persistence as { listSnapshots?: unknown }).listSnapshots !== 'function') return
     const retry = trendRepairRetries.get(sessionId); if (retry) { clearTimeout(retry); trendRepairRetries.delete(sessionId) }
     const anchorFrom = Math.max(0, fromSeq - 1)
     trendMaintenanceResult = undefined; trendMaintenanceError = undefined
@@ -235,6 +244,11 @@ export function apply(ctx: Context): void {
     if (trendRebuildFlight) return trendRebuildFlight
     const controller = new AbortController(); trendRebuildController = controller
     trendMaintenanceResult = undefined; trendMaintenanceError = undefined
+    if (typeof (persistence as { listSnapshots?: unknown }).listSnapshots !== 'function') {
+      trendRebuildFlight = undefined; trendRebuildController = undefined
+      trendMaintenanceResult = 'unsupported'; trendMaintenanceError = 'sessionPersistence does not expose listSnapshots'
+      return Promise.resolve()
+    }
     const promise = (async () => {
       // First-time/corruption recovery is intentionally detached from both host
       // startup and panel GET response paths. Normal restarts never enter here.
@@ -264,6 +278,10 @@ export function apply(ctx: Context): void {
   const reconcileTrend = (persistence: TrendPersistenceService): Promise<void> => {
     if (trendReconcileFlight) return trendReconcileFlight
     trendMaintenanceResult = undefined; trendMaintenanceError = undefined
+    if (typeof (persistence as { listSnapshots?: unknown }).listSnapshots !== 'function') {
+      trendMaintenanceResult = 'unsupported'; trendMaintenanceError = 'sessionPersistence does not expose listSnapshots'
+      return Promise.resolve()
+    }
     const promise = (async () => {
       const snapshots = await persistence.listSnapshots()
       const ids = new Set(snapshots.map(snapshot => snapshot.header.id))
@@ -315,9 +333,22 @@ export function apply(ctx: Context): void {
       if (!persistence) return () => {}
       trendPersistence = persistence
       const eventContext = persistenceCtx as unknown as { on(name: string, callback: (...args: unknown[]) => unknown, options?: { global?: boolean }): () => void }
+      const hasListSnapshots = typeof (persistence as { listSnapshots?: unknown }).listSnapshots === 'function'
       const stopEvent = eventContext.on('session/event', (session, rawEvent) => {
         const sessionId = (session as { id?: unknown })?.id
         if (typeof sessionId !== 'string') return
+        // Hosts whose sessionPersistence predates listSnapshots only expose
+        // readFrom. The trend replayer depends on enumerable snapshots and the
+        // revision key, so it cannot advance on those hosts; silently record
+        // usable events for a later explicit maintenance pass instead of
+        // throwing on every event (which spams the host error log).
+        if (!hasListSnapshots) {
+          const list = trendPending.get(sessionId) ?? [];
+          const event = rawEvent as SequencedUsageEvent; if (event) list.push({ ...event, seq: typeof event.seq === 'number' ? event.seq : undefined })
+          trendPending.set(sessionId, list)
+          indexScheduler.notify?.()
+          return
+        }
         if (!trendBaselineRevisions.has(sessionId)) {
           trendBaselineRevisions.set(sessionId, persistence.listSnapshots().then(items => {
             const snapshot = items.find(item => item.header.id === sessionId)
@@ -859,6 +890,9 @@ export function apply(ctx: Context): void {
           if (String((req as { method?: unknown })?.method ?? '').toUpperCase() !== 'POST') { json(res, 405, { error: 'method not allowed' }); return }
           if (!trendPersistence) { json(res, 503, { error: 'sessionPersistence is unavailable' }); return }
           if (trendRebuildFlight || trendReconcileFlight || trendRepairFlights.size > 0) { json(res, 409, { error: 'trend maintenance already running' }); return }
+          if (typeof (trendPersistence as { listSnapshots?: unknown }).listSnapshots !== 'function') {
+            json(res, 501, { error: 'sessionPersistence does not expose listSnapshots; hourly trends are unavailable on this host' }); return
+          }
           void rebuildTrend(trendPersistence)
           json(res, 202, { ok: true, status: 'rebuilding', path: hourlyTrend.path })
         },

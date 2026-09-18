@@ -2,6 +2,18 @@
 
 All notable changes to this project are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Semantic Versioning](https://semver.org/).
 
+## [0.3.1] - 2026-09-18
+
+### Fixed
+
+- **旧宿主兼容降级（重要）**：当前 DSH 运行时（0.1.5-rc.x）的 `sessionPersistence` 未暴露 `listSnapshots`，导致 host 端在每次 `session/event` 时调用不存在的方法并高频抛出 `TypeError: persistence.listSnapshots is not a function`（错误日志每事件刷屏）。现做防御性降级：事件监听器不再抛错，趋势索引维护在缺失该接口的宿主机上被明确标记为 `unsupported`，面板与维护页显示清晰提示而非误报"重建成功"。
+- **趋势维护接口新增 `unsupported` 结果态**：`repair` 路由在不受支持的宿主上返回 501（带原因），`status` 返回 `lastResult: 'unsupported'`，设置页维护卡片显示"当前宿主的会话持久化接口不支持趋势索引"。
+- 补充回归测试：无 `listSnapshots` 的宿主事件监听不抛错、repair 返回 501、status 返回 unsupported。
+
+### Validation
+
+- TypeScript host/client typecheck 通过；`npm test` 208/208 通过；资源审计、构建与 `npm pack --dry-run` 通过。
+
 ## [0.3.0] - 2026-09-18
 
 ### Added
@@ -108,7 +120,8 @@ All notable changes to this project are documented here. The format follows [Kee
 - npm package installs with host entry, web client bundle, and `cordis.patch.yml` present.
 - GitHub CI passes on the public `main` branch.
 
-[Unreleased]: https://github.com/Jimmy0123-ux/dsh-token-pet/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/Jimmy0123-ux/dsh-token-pet/compare/v0.3.1...HEAD
+[0.3.1]: https://github.com/Jimmy0123-ux/dsh-token-pet/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/Jimmy0123-ux/dsh-token-pet/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/Jimmy0123-ux/dsh-token-pet/releases/tag/v0.2.0
 [0.1.1]: https://github.com/Jimmy0123-ux/dsh-token-pet/releases/tag/v0.1.1

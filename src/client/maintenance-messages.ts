@@ -14,6 +14,7 @@ export const maintenanceMessages = defineMessages({
   completed: { zh: '维护已完成', en: 'Maintenance completed' },
   cancelled: { zh: '重建已取消', en: 'Rebuild cancelled' },
   failed: { zh: '维护失败', en: 'Maintenance failed' },
+  unsupported: { zh: '当前宿主的会话持久化接口不支持趋势索引', en: 'This host’s session persistence does not support the trend index' },
   idle: { zh: '空闲', en: 'Idle' },
   notGenerated: { zh: '尚未生成', en: 'Not generated yet' },
   invalidTime: { zh: '时间无效', en: 'Invalid time' },

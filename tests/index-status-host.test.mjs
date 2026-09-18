@@ -353,3 +353,49 @@ test('startup reconciliation absorbing a pending event does not wait for a ficti
     else process.env.DSH_HOME = priorHome
   }
 })
+
+test('hosts without sessionPersistence.listSnapshots never throw from listeners and return 501 on repair', async () => {
+  const home = await mkdtemp(join(tmpdir(), 'token-pet-unsupported-host-'))
+  const priorHome = process.env.DSH_HOME
+  process.env.DSH_HOME = home
+  try {
+    // This sessionPersistence only exposes readFrom — the host predates the
+    // listSnapshots contract. The plugin must degrade gracefully instead of
+    // throwing on every session/event (regression: 200+/error-log spam).
+    const persistence = {
+      async readFrom(_id, from) { return { meta: {}, events: [{ seq: from, type: 'turn/end', time: Date.now(), data: { turn: 1, step: 1, usage: { inputTokens: 1 } } }] } },
+    }
+    const listeners = new Map(); const routes = new Map()
+    let listenerThrew = null
+    const scoped = services => ({
+      get(name) { return services[name] }, effect(start) { return start() },
+      on(name, callback) { listeners.set(name, (...args) => { try { return callback(...args) } catch (error) { listenerThrew = error } }); return () => {} },
+    })
+    apply({
+      inject(deps, start) {
+        if (deps.includes('sessionPersistence')) start(scoped({ sessionPersistence: persistence }))
+        else if (deps.includes('webServer')) start(scoped({ webServer: { register(route) { routes.set(route.path, route); return () => {} } }, sessionQuery: { async listSessions() { return [] }, async readSession() { throw new Error('unused') } } }))
+      },
+      get() { return undefined },
+    })
+    // Fire several live session events; none may reach the host error path.
+    for (let i = 0; i < 3; i++) listeners.get('session/event')({ id: 'live-1' }, { seq: i, type: 'turn/end', time: Date.now(), data: { turn: 1, step: 1, usage: { inputTokens: 1 } } })
+    await new Promise(resolve => setTimeout(resolve, 20))
+    assert.equal(listenerThrew, null, 'a host without listSnapshots must not make the event listener throw')
+    // The explicit trend rebuild must be reported as unsupported (501), not a
+    // fake 202, so the maintenance UI never shows "rebuilding" that no-ops.
+    const repairRoute = routes.get('/token-pet/usage/trend/repair')
+    assert.ok(repairRoute)
+    const res = await call(repairRoute, 'POST')
+    assert.equal(res.statusCode, 501)
+    assert.match(res.body.error, /listSnapshots/)
+    // Status surfaces the unsupported maintenance result without crashing.
+    const statusRoute = routes.get('/token-pet/usage/trend/status')
+    const status = await call(statusRoute)
+    assert.equal(status.statusCode, 200)
+    assert.equal(status.body.lastResult, 'unsupported')
+  } finally {
+    if (priorHome === undefined) delete process.env.DSH_HOME
+    else process.env.DSH_HOME = priorHome
+  }
+})

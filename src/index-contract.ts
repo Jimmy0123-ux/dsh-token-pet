@@ -6,7 +6,7 @@ export type TokenPetIndexTerminal = 'cancelled' | 'error'
 
 export type TokenPetTrendIndexHealth = 'ready' | 'missing' | 'corrupt'
 export type TokenPetTrendIndexOperation = 'idle' | 'reconciling' | 'rebuilding' | 'repairing'
-export type TokenPetTrendIndexResult = 'completed' | 'cancelled' | 'failed'
+export type TokenPetTrendIndexResult = 'completed' | 'cancelled' | 'failed' | 'unsupported'
 
 /** Lightweight hourly projection metadata. Reading it never opens session history. */
 export interface TokenPetTrendIndexStatus {

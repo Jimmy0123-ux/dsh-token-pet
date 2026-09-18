@@ -5,7 +5,7 @@ import { maintenanceText } from './maintenance-messages.ts'
 
 const HEALTH = new Set<TokenPetTrendIndexHealth>(['ready', 'missing', 'corrupt'])
 const OPERATIONS = new Set<TokenPetTrendIndexOperation>(['idle', 'reconciling', 'rebuilding', 'repairing'])
-const RESULTS = new Set<TokenPetTrendIndexResult>(['completed', 'cancelled', 'failed'])
+const RESULTS = new Set<TokenPetTrendIndexResult>(['completed', 'cancelled', 'failed', 'unsupported'])
 
 /** Validate the small host maintenance envelope before presenting it in settings. */
 export function trendIndexStatusOf(value: unknown): TokenPetTrendIndexStatus | null {
@@ -53,5 +53,6 @@ export function trendOperationLabel(status: TokenPetTrendIndexStatus | null, lan
   if (status.lastResult === 'completed') return maintenanceText(language, 'completed')
   if (status.lastResult === 'cancelled') return maintenanceText(language, 'cancelled')
   if (status.lastResult === 'failed') return maintenanceText(language, 'failed')
+  if (status.lastResult === 'unsupported') return maintenanceText(language, 'unsupported')
   return maintenanceText(language, 'idle')
 }
