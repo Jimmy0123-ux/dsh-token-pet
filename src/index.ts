@@ -897,6 +897,41 @@ export function apply(ctx: Context): void {
         },
       }))
 
+      // GET: per-session totals from the durable usage index. This is a pure
+      // persisted-snapshot read: it never lists or opens session logs, so the
+      // "面板只读快照" constraint holds. Rows are sorted by token total desc.
+      disposers.push(ws.register({
+        kind: 'exact',
+        path: '/token-pet/usage/sessions',
+        handler: async (req, res) => {
+          if (String((req as { method?: unknown })?.method ?? '').toUpperCase() !== 'GET') { json(res, 405, { error: 'method not allowed' }); return }
+          try {
+            const url = typeof (req as { url?: unknown })?.url === 'string' ? new URL((req as { url: string }).url, 'http://localhost') : undefined
+            const rawLimit = Number(url?.searchParams.get('limit') ?? 8)
+            const limit = Math.max(1, Math.min(50, Number.isFinite(rawLimit) ? Math.floor(rawLimit) : 8))
+            const persisted = await usageIndex.isPersisted()
+            const entries = await usageIndex.entries()
+            const rows = Object.entries(entries).map(([sessionId, entry]) => {
+              let total = 0
+              const totals = { uncachedInputTokens: 0, outputTokens: 0, cacheReadTokens: 0, cacheWriteTokens: 0 }
+              for (const cell of entry.cells) {
+                total += cell.total
+                totals.uncachedInputTokens += cell.totals.uncachedInputTokens
+                totals.outputTokens += cell.totals.outputTokens
+                totals.cacheReadTokens += cell.totals.cacheReadTokens
+                totals.cacheWriteTokens += cell.totals.cacheWriteTokens
+              }
+              return { sessionId, total, totals }
+            }).sort((a, b) => b.total - a.total).slice(0, limit)
+            json(res, 200, { persisted, sessions: rows })
+          } catch (e) {
+            const detail = e instanceof Error ? `${e.message}\n${e.stack ?? ''}` : String(e)
+            console.error('[token-pet] /token-pet/usage/sessions failed:', detail)
+            json(res, 500, { error: detail })
+          }
+        },
+      }))
+
       // Sole irreversible operation. It has a dedicated route, exact phrase
       // confirmation, and intentionally no restore counterpart.
       disposers.push(ws.register({

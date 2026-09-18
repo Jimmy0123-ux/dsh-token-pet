@@ -30,6 +30,17 @@ export const panelMessages = defineMessages({
   allModels: { zh: '全部服务商与模型', en: 'All providers & models' }, modelIntro: { zh: '分类来自账本的模型/日期记录；源接口未提供分类时仅显示真实总量。', en: 'Breakdowns come from ledger model/day records. Only reported totals are shown when a breakdown is unavailable.' },
   noBreakdown: { zh: '当前接口未提供该模型的 Token 分类，因此不进行推算。', en: 'The source provides no token breakdown for this model. No estimates are made.' }, noModelUsage: { zh: '暂无模型用量', en: 'No model usage yet' },
   settingsLoading: { zh: '正在加载设置…', en: 'Loading settings…' }, panel: { zh: '用量小宠物统计面板', en: 'Token pet usage panel' }, tabs: { zh: '统计面板', en: 'Usage views' },
+  cost: { zh: '成本估算', en: 'Estimated cost' }, costScope: { zh: '按本地价格表估算；可在设置中调整', en: 'Estimated from the local price table; adjustable in Settings' },
+  monthCost: { zh: '本月约', en: 'This month ≈' }, lifetimeCost: { zh: '累计约', en: 'Lifetime ≈' },
+  budget: { zh: '月预算', en: 'Monthly budget' }, budgetUsed: { zh: '已用 {percent}%', en: '{percent}% used' }, overBudget: { zh: '已超出月预算', en: 'Over monthly budget' },
+  budgetNote: { zh: '开启月预算告警后，超出时宠物会显示预警。', en: 'With the budget alert enabled, the pet shows a warning once you exceed it.' },
+  modelCost: { zh: '估算成本', en: 'Est. cost' },
+  trendToday: { zh: '今日', en: 'Today' }, trend7d: { zh: '近 7 日', en: '7 days' }, trend30d: { zh: '近 30 日', en: '30 days' },
+  dayTrendNote: { zh: '按账本按日聚合，仅含有用量记录的日期', en: 'Daily totals from the ledger; days with usage only' },
+  topSessions: { zh: '最耗 Token 的会话', en: 'Top token sessions' }, sessionsHint: { zh: '来自持久化用量索引的会话合计', en: 'Per-session totals from the persisted usage index' },
+  sessionsEmpty: { zh: '暂无会话统计', en: 'No session statistics yet' }, sessionsNeedsIndex: { zh: '首次建立历史索引后显示', en: 'Build the history index to see this' },
+  sessionsError: { zh: '会话排行读取失败', en: 'Could not load session ranking' }, sessionShortId: { zh: '会话 {id}', en: 'Session {id}' },
+  costUnknown: { zh: '成本未知（无价格表条目）', en: 'Cost unknown (no price table entry)' },
 })
 export type PanelMessageKey = keyof typeof panelMessages
 export function panelText(language: Language, key: PanelMessageKey, params?: MessageParams): string {

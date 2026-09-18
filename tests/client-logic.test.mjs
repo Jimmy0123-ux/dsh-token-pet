@@ -186,11 +186,40 @@ test('skin paths reject traversal and executable content', () => {
   assert.equal(isSafeSkinEntryPath('C:/evil.exe'), false)
 })
 
-test('skin ZIP import is explicitly host-owned and fails safely in client', () => {
+test('skin ZIP import validates, bounds and installs in the client', async () => {
   const zip = zipSync({
-    'manifest.json': strToU8(JSON.stringify({ id: 'test-skin', name: 'Test Skin' })),
+    'manifest.json': strToU8(JSON.stringify({ id: 'test-skin', name: 'Test Skin', palette: { body: '#123456' } })),
+    'common/idle.webp': strToU8('webp-bytes'),
   })
-  assert.throws(() => importSkinZip(zip), /宿主适配器/)
+  const bundle = await importSkinZip(zip)
+  assert.equal(bundle.manifest.id, 'test-skin')
+  assert.equal(bundle.files.get('common/idle.webp') !== undefined, true)
+  assert.equal(bundle.totalBytes, 'webp-bytes'.length)
+})
+
+test('skin ZIP import rejects empty input, missing manifests and unsafe paths', async () => {
+  await assert.rejects(importSkinZip(new Uint8Array()), (error) => error.key === 'invalidZip')
+  await assert.rejects(importSkinZip(new Uint8Array([1, 2, 3, 4])), (error) => error.key === 'invalidZip')
+  const noManifest = zipSync({ 'common/idle.webp': strToU8('x') })
+  await assert.rejects(importSkinZip(noManifest), (error) => error.key === 'noManifest')
+  const traversal = zipSync({
+    'manifest.json': strToU8(JSON.stringify({ id: 'evil', name: 'Evil' })),
+    '../escape.png': strToU8('boom'),
+  })
+  await assert.rejects(importSkinZip(traversal), (error) => error.key === 'unsafeEntries')
+  const badManifest = zipSync({ 'manifest.json': strToU8('{ not json') })
+  await assert.rejects(importSkinZip(badManifest), (error) => error.key === 'invalidManifest')
+  await assert.rejects(importSkinZip(zipSync({ 'manifest.json': strToU8(JSON.stringify({ id: '../bad', name: 'Bad' })) })), (error) => error.key === 'invalidManifest')
+})
+
+test('skin ZIP size limits are enforced', async () => {
+  const zip = zipSync({ 'manifest.json': strToU8(JSON.stringify({ id: 'big', name: 'Big' })) })
+  await assert.rejects(importSkinZip(zip, { maxZipBytes: 10 }), (error) => error.key === 'tooLarge')
+  const withBigFile = zipSync({
+    'manifest.json': strToU8(JSON.stringify({ id: 'big2', name: 'Big 2' })),
+    'common/idle.webp': new Uint8Array(64),
+  })
+  await assert.rejects(importSkinZip(withBigFile, { maxFileBytes: 16 }), (error) => error.key === 'tooLarge')
 })
 
 test('skin manifest and path validation remain available in client', () => {
@@ -205,6 +234,23 @@ test('Green Sprout uses common actions and pressure bands only tint warning ring
   assert.equal(resolveSkinAction(GREEN_SPROUT_SKIN, 'missing', 'active'), 'common/idle.webp')
   assert.equal(resolveStyleOverride(GREEN_SPROUT_SKIN, 'growth.body'), undefined)
   assert.equal(resolveStyleOverride(GREEN_SPROUT_SKIN, 'growth.ring'), '#8fbf9b')
+})
+
+test('built-in palette skins validate and keep their shared palette', () => {
+  const ids = BUILTIN_SKINS.map((skin) => skin.id)
+  assert.ok(ids.includes('builtin.blue-ice'))
+  assert.ok(ids.includes('builtin.purple-mist'))
+  assert.ok(ids.includes('builtin.orange-citrus'))
+  for (const skin of BUILTIN_SKINS) {
+    const roundTrip = validateSkinManifest(skin)
+    assert.ok(roundTrip, skin.id)
+    assert.equal(roundTrip.id, skin.id)
+    if (skin.palette) assert.equal(typeof skin.palette.body, 'string')
+  }
+  const withPalette = validateSkinManifest({ id: 'ok', name: 'Ok', palette: { body: '#fff', nope: 3 } })
+  assert.ok(withPalette)
+  assert.equal(withPalette.palette?.body, '#fff')
+  assert.equal('nope' in (withPalette.palette ?? {}), false)
 })
 
 test('prompt enhancement requires explicit call and supports manual actions', async () => {

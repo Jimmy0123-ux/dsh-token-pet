@@ -1,12 +1,13 @@
 import { createElement as h, useMemo, useState } from 'react'
 
-import { css, formatMs, formatTokens, type CumulativeCell, type CumulativeModel, type CumulativeUsage, type SessionStats, type TokenUsage, type TrendBucket } from './derive.ts'
+import { css, formatMs, formatTokens, type CumulativeCell, type CumulativeModel, type CumulativeUsage, type SessionRanking, type SessionStats, type TokenUsage, type TrendBucket } from './derive.ts'
 import type { PetAction } from './events.ts'
 import { TokenPetSettingsPanel } from './settings-panel.tsx'
 import { localeFor, type Language } from './i18n.ts'
-import { useLanguage } from './settings-hook.ts'
+import { useLanguage, useSettings } from './settings-hook.ts'
 import { panelContentGrid } from './layout.ts'
 import { panelText } from './panel-messages.ts'
+import { costOfTotals, dayTotalsOfCells, formatCost, monthlyCostOfCells, parsePriceTable, resolvePrice, DEFAULT_PRICES, costPerModel } from './cost.ts'
 import type { TokenPetIndexState } from '../index-contract.ts'
 
 /** Contract for staged opening: keep the first paint lightweight. */
@@ -70,6 +71,9 @@ export interface PanelProps {
   onApplyPrompt?: (text: string) => void
   onSendPrompt?: (text: string) => void | Promise<void>
   phase?: 0 | 1 | 2
+  /** Per-session totals from the durable usage index (never a scan). */
+  sessionRanking?: SessionRanking | null
+  sessionRankingStatus?: PanelRequestStatus
 }
 
 /** Backward-compatible name for consumers of the panel component. */
@@ -114,8 +118,26 @@ function Sparkline({ data, language }: { data: TrendBucket[]; language: Language
   ])
 }
 
-function aggregateModelCells(cells: CumulativeCell[] | undefined): Map<string, TokenUsage> {
-  const result = new Map<string, TokenUsage>()
+/** Daily totals from ledger cells for the last N days, ascending, as TrendBuckets. */
+function dayTrendBuckets(cells: CumulativeCell[] | undefined, days: number, now = Date.now()): TrendBucket[] {
+  const cutoff = now - days * 24 * 60 * 60 * 1000
+  return dayTotalsOfCells(cells ?? [])
+    .filter((row) => {
+      const start = Date.parse(`${row.day}T00:00:00`)
+      return Number.isFinite(start) && start >= cutoff - 24 * 60 * 60 * 1000
+    })
+    .sort((a, b) => (a.day < b.day ? -1 : 1))
+    .map((row) => {
+      const start = Date.parse(`${row.day}T00:00:00`)
+      return { start, end: start + 24 * 60 * 60 * 1000, total: row.total, count: row.cells }
+    })
+}
+
+function shortSessionId(id: string): string {
+  return id.length <= 14 ? id : `${id.slice(0, 12)}…`
+}
+
+function aggregateModelCells(cells: CumulativeCell[] | undefined): Map<string, TokenUsage> {  const result = new Map<string, TokenUsage>()
   for (const cell of cells ?? []) {
     const key = `${cell.provider}\u0000${cell.model}`
     const current = result.get(key) ?? { uncachedInputTokens: 0, outputTokens: 0, cacheReadTokens: 0, cacheWriteTokens: 0 }
@@ -186,6 +208,17 @@ export function ContextPanel(p: PanelProps) {
   // never silently replace the ledger when the ledger is loading or empty.
   const modelRows = useMemo(() => [...(ledger?.byModel ?? [])].sort((a, b) => b.total - a.total), [ledger])
   const modelBuckets = useMemo(() => aggregateModelCells(ledger?.byModelDay), [ledger])
+  // Cost estimation is local and never network-backed; the price table lives
+  // in Settings. Estimates are clearly labelled in the UI.
+  const preferences = useSettings()
+  const priceTable = useMemo(() => parsePriceTable(preferences.priceTable) ?? DEFAULT_PRICES, [preferences.priceTable])
+  const monthlyCost = monthlyCostOfCells(ledger?.byModelDay ?? [], priceTable)
+  const modelCosts = useMemo(() => costPerModel(ledger?.byModelDay ?? [], priceTable), [ledger, priceTable])
+  const costByKey = useMemo(() => new Map(modelCosts.map((row) => [`${row.provider}\u0000${row.model}`, row.cost])), [modelCosts])
+  const overBudget = preferences.budgetEnabled && monthlyCost >= Math.max(0, preferences.budgetMonthly)
+  const budgetPercent = preferences.budgetMonthly > 0 ? Math.min(100, (monthlyCost / preferences.budgetMonthly) * 100) : 0
+  const [trendRange, setTrendRange] = useState<'today' | '7d' | '30d'>('today')
+  const trendData = trendRange === 'today' ? p.trend : dayTrendBuckets(ledger?.byModelDay, trendRange === '7d' ? 7 : 30)
   const currentProviderModel = modelDisplayName({ provider: p.provider ?? '', model: p.model ?? '' }) || t('unknownModel')
   const contextTotal = p.breakdown ? p.breakdown.systemTokens + p.breakdown.toolsTokens + p.breakdown.messageTokens : 0
   const indexReadable = p.indexProgress?.status === 'ready' || p.indexProgress?.status === 'partial' || p.indexProgress?.status === 'syncing'
@@ -255,6 +288,23 @@ export function ContextPanel(p: PanelProps) {
       confirmLifetimeClear ? h(LifetimeClearConfirmation, { key: 'confirm', language, busy: p.busy || clearStatus === 'clearing', onCancel: () => setConfirmLifetimeClear(false), onConfirm: confirmClearLifetime })
         : h('button', { key: 'clear', onClick: () => { setClearStatus('idle'); setConfirmLifetimeClear(true) }, disabled: p.busy || !ledger || !p.onClearLifetime, style: css(dangerLink) }, t('clear')),
     ]),
+    h('section', { key: 'cost', style: css(heroCard), 'data-testid': 'cost-estimate' }, [
+      h('div', { key: 'eyebrow', style: css(eyebrow) }, t('cost')),
+      h('div', { key: 'heading', style: css(sectionHeading) }, [
+        h('strong', { key: 'title' }, t('cost')),
+        h('span', { key: 'scope', style: css(subtle) }, t('costScope')),
+      ]),
+      h('div', { key: 'numbers', style: css(contextHeadline) }, [
+        h('strong', { key: 'month', style: css(heroTotal) }, `${t('monthCost')} ${formatCost(monthlyCost, preferences.currency)}`),
+      ]),
+      overBudget ? h('div', { key: 'over', role: 'alert', style: css(overBudgetText) }, t('overBudget')) : null,
+      preferences.budgetEnabled ? h('div', { key: 'budget', style: css(budgetRow) }, [
+        h('span', { key: 'label' }, `${t('budget')} ${formatCost(preferences.budgetMonthly, preferences.currency)}`),
+        h('span', { key: 'used' }, t('budgetUsed', { percent: budgetPercent.toFixed(0) })),
+      ]) : null,
+      preferences.budgetEnabled ? h('div', { key: 'bar', style: css(budgetBar), role: 'meter', 'aria-valuenow': Math.round(budgetPercent), 'aria-valuemin': 0, 'aria-valuemax': 100 }, h('span', { key: 'fill', style: css({ display: 'block', width: `${budgetPercent}%`, height: '100%', borderRadius: 999, background: overBudget ? '#d98282' : '#91a7ff' }) })) : null,
+      h('div', { key: 'note', style: css(note) }, t('budgetNote')),
+    ]),
     h('div', { key: 'insights', style: css(panelContentGrid()) }, [
     h('section', { key: 'top', style: css(card) }, [
       h('div', { key: 'heading', style: css(sectionHeading) }, [h('strong', { key: 'title' }, t('topModels')), h('span', { key: 'scope', style: css(subtle) }, t('lifetime'))]),
@@ -262,17 +312,41 @@ export function ContextPanel(p: PanelProps) {
         h('span', { key: 'rank', style: css(rank) }, String(index + 1).padStart(2, '0')),
         h('span', { key: 'name', style: css(modelName), title: modelDisplayName(item) }, modelDisplayName(item)),
         h('strong', { key: 'total', style: css(modelValue) }, formatTokens(item.total)),
+        h('span', { key: 'cost', style: css(modelCost) }, formatCost(costByKey.get(`${item.provider}\u0000${item.model}`) ?? 0, preferences.currency)),
       ]))) : h('div', { key: 'empty', style: css(emptyState) }, modelEmptyText(false)),
     ]),
     h('section', { key: 'trend', style: css(card) }, [
       h('div', { key: 'heading', style: css(sectionHeading) }, [
         h('strong', { key: 'title' }, t('todayTrend')),
-        h('span', { key: 'interval', style: css(subtle) }, p.refreshing ? t('refreshingHourly') : t('hourly')),
+        h('div', { key: 'range', role: 'group', style: css(rangeGroup) }, [
+          h('button', { key: 'today', type: 'button', onClick: () => setTrendRange('today'), style: css(rangeButton(trendRange === 'today')) }, t('trendToday')),
+          h('button', { key: '7d', type: 'button', onClick: () => setTrendRange('7d'), style: css(rangeButton(trendRange === '7d')) }, t('trend7d')),
+          h('button', { key: '30d', type: 'button', onClick: () => setTrendRange('30d'), style: css(rangeButton(trendRange === '30d')) }, t('trend30d')),
+        ]),
+        p.refreshing ? h('span', { key: 'refreshing', style: css(subtle) }, t('refreshingHourly')) : null,
       ]),
       !sections.trend ? h('div', { key: 'state', style: css(emptyState) }, t('opening'))
-        : !indexReadable ? h('div', { key: 'state', style: css(emptyState) }, t('trendNeedsIndex'))
-          : p.trendStatus === 'error' ? h('div', { key: 'state', style: css(errorText) }, t('trendError'))
-            : p.trendStatus === 'ready' ? h(Sparkline, { key: 'chart', data: p.trend, language }) : h('div', { key: 'state', style: css(emptyState) }, t('trendLoading')),
+        : trendRange === 'today'
+          ? (!indexReadable ? h('div', { key: 'state', style: css(emptyState) }, t('trendNeedsIndex'))
+              : p.trendStatus === 'error' ? h('div', { key: 'state', style: css(errorText) }, t('trendError'))
+                : p.trendStatus === 'ready' ? h(Sparkline, { key: 'chart', data: trendData, language }) : h('div', { key: 'state', style: css(emptyState) }, t('trendLoading')))
+          : (trendData.length === 0 ? h('div', { key: 'state', style: css(emptyState) }, t('noTrend'))
+              : h(Sparkline, { key: 'chart', data: trendData, language })),
+      trendRange !== 'today' ? h('div', { key: 'note', style: css(note) }, t('dayTrendNote')) : null,
+    ]),
+    h('section', { key: 'sessions', style: css(card) }, [
+      h('div', { key: 'heading', style: css(sectionHeading) }, [h('strong', { key: 'title' }, t('topSessions')), h('span', { key: 'hint', style: css(subtle) }, t('sessionsHint'))]),
+      p.sessionRankingStatus === 'error' ? h('div', { key: 'state', style: css(errorText) }, t('sessionsError'))
+        : p.sessionRankingStatus === 'ready' && p.sessionRanking
+          ? (p.sessionRanking.sessions.length === 0
+              ? h('div', { key: 'empty', style: css(emptyState) }, p.sessionRanking.persisted ? t('sessionsEmpty') : t('sessionsNeedsIndex'))
+              : h('div', { key: 'list', style: css(list) }, p.sessionRanking.sessions.slice(0, 5).map((item, index) => h('div', { key: item.sessionId, style: css(modelRow) }, [
+                h('span', { key: 'rank', style: css(rank) }, String(index + 1).padStart(2, '0')),
+                h('span', { key: 'id', style: css(modelName), title: item.sessionId }, t('sessionShortId', { id: shortSessionId(item.sessionId) })),
+                h('strong', { key: 'total', style: css(modelValue) }, formatTokens(item.total)),
+                h('span', { key: 'cost', style: css(modelCost) }, formatCost(costOfTotals(item.totals, resolvePrice(priceTable, '(unknown)')), preferences.currency)),
+              ]))))
+          : h('div', { key: 'state', style: css(emptyState) }, t('loading')),
     ]),
     ]),
   ])
@@ -283,6 +357,7 @@ export function ContextPanel(p: PanelProps) {
       const buckets = modelBuckets.get(`${item.provider}\u0000${item.model}`)
       return h('section', { key: `${item.provider}|${item.model}`, style: css(card) }, [
         h('div', { key: 'heading', style: css(sectionHeading) }, [h('strong', { key: 'name', style: css(fullModelName), title: modelDisplayName(item) }, modelDisplayName(item)), h('span', { key: 'total', style: css(modelValue) }, formatTokens(item.total))]),
+        h('div', { key: 'cost', style: css(modelCostLine) }, `${t('modelCost')} ${formatCost(costByKey.get(`${item.provider}\u0000${item.model}`) ?? 0, preferences.currency)}`),
         buckets ? tokenCells(buckets, language) : h('div', { key: 'note', style: css(note) }, t('noBreakdown')),
       ])
     }) : [h('div', { key: 'empty', style: css(emptyState) }, modelEmptyText(true))]),
@@ -328,11 +403,22 @@ const statCellStyle: import('react').CSSProperties = { minWidth: 0, display: 'fl
 const statValue: import('react').CSSProperties = { minWidth: 0, color: '#fff', fontSize: 12, fontVariantNumeric: 'tabular-nums', overflowWrap: 'anywhere', whiteSpace: 'normal' }
 const statLabel: import('react').CSSProperties = { color: '#8f96ad', fontSize: 10, whiteSpace: 'normal' }
 const list: import('react').CSSProperties = { display: 'flex', flexDirection: 'column', gap: 3, marginTop: 8 }
-const modelRow: import('react').CSSProperties = { display: 'grid', gridTemplateColumns: '24px minmax(0,1fr) auto', alignItems: 'center', gap: 7, minWidth: 0, padding: '4px 0' }
+const modelRow: import('react').CSSProperties = { display: 'grid', gridTemplateColumns: '24px minmax(0,1fr) auto auto', alignItems: 'center', gap: 7, minWidth: 0, padding: '4px 0' }
 const rank: import('react').CSSProperties = { color: '#6f7895', fontSize: 10, fontVariantNumeric: 'tabular-nums' }
 const modelName: import('react').CSSProperties = { color: '#cfd4e8', minWidth: 0, overflowWrap: 'anywhere', whiteSpace: 'normal' }
 const fullModelName: import('react').CSSProperties = { minWidth: 0, overflowWrap: 'anywhere', color: '#dce1f5' }
 const modelValue: import('react').CSSProperties = { color: '#ffd166', whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums' }
+const modelCost: import('react').CSSProperties = { color: '#9fd0a8', whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums', fontSize: 10 }
+const modelCostLine: import('react').CSSProperties = { color: '#9fd0a8', fontSize: 10, marginTop: 4 }
+const rangeGroup: import('react').CSSProperties = { display: 'flex', gap: 4, flexWrap: 'wrap' }
+const rangeButton = (active: boolean): import('react').CSSProperties => ({
+  color: active ? '#fff' : '#9aa0b5', background: active ? 'rgba(124,150,255,.22)' : 'transparent',
+  border: active ? '1px solid rgba(145,167,255,.5)' : '1px solid rgba(128,128,160,.25)',
+  borderRadius: 6, padding: '2px 7px', cursor: 'pointer', fontSize: 10,
+})
+const budgetRow: import('react').CSSProperties = { display: 'flex', justifyContent: 'space-between', gap: 8, marginTop: 8, color: '#cfd4e8', fontSize: 11, flexWrap: 'wrap' }
+const budgetBar: import('react').CSSProperties = { display: 'block', width: '100%', height: 6, marginTop: 7, overflow: 'hidden', borderRadius: 999, background: 'rgba(128,128,160,.18)' }
+const overBudgetText: import('react').CSSProperties = { color: '#ffb4a8', fontSize: 11, marginTop: 7 }
 const providerTag: import('react').CSSProperties = { boxSizing: 'border-box', minWidth: 0, maxWidth: '100%', color: '#91a7ff', fontSize: 10, padding: '2px 6px', borderRadius: 6, background: 'rgba(124,150,255,.12)', overflowWrap: 'anywhere', whiteSpace: 'normal' }
 const compactSummary: import('react').CSSProperties = { display: 'flex', justifyContent: 'space-between', gap: 8, marginTop: 9, color: '#cfd4e8', fontSize: 11 }
 const summaryGrid: import('react').CSSProperties = { display: 'grid', gridTemplateColumns: panelContentGrid(92).gridTemplateColumns, gap: 6, marginTop: 9 }

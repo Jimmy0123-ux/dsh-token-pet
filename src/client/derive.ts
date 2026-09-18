@@ -259,6 +259,41 @@ export function lifetimeLedgerOf(value: unknown): LifetimeLedgerUsage | null {
   }
 }
 
+// ---- Session ranking (persisted usage-index snapshot only, never a scan) ----
+
+/** One session's aggregated usage from the durable usage index. */
+export interface SessionRankingEntry {
+  sessionId: string
+  total: number
+  totals: TokenUsage
+}
+
+/** Response of GET /token-pet/usage/sessions. */
+export interface SessionRanking {
+  /** Whether a durable index document exists at all. */
+  persisted: boolean
+  sessions: SessionRankingEntry[]
+}
+
+/** Narrow the host-served session ranking; fail-closed to null. */
+export function sessionRankingOf(value: unknown): SessionRanking | null {
+  const r = asRecord(value)
+  if (r === null) return null
+  const persisted = typeof r.persisted === 'boolean' ? r.persisted : false
+  const raw = Array.isArray(r.sessions) ? r.sessions : []
+  const sessions: SessionRankingEntry[] = []
+  for (const item of raw) {
+    const q = asRecord(item)
+    if (q === null) continue
+    if (typeof q.sessionId !== 'string' || q.sessionId === '') continue
+    const total = num(q.total)
+    const totals = tokenUsageOf(q.totals)
+    if (total === undefined || totals === null) continue
+    sessions.push({ sessionId: q.sessionId, total, totals })
+  }
+  return { persisted, sessions: sessions.slice(0, 200) }
+}
+
 export function sessionStatsOf(value: unknown): SessionStats | null {
   const r = asRecord(value)
   if (r === null) return null

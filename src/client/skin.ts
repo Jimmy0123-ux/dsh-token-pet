@@ -15,6 +15,8 @@
  * color/style overrides so the skin pipeline is testable end-to-end.
  */
 
+import { strFromU8, unzip, type Unzipped } from 'fflate'
+
 import type { PetAction } from './events.ts'
 import type { PetStage } from './derive.ts'
 import { localeFor, type Language } from './i18n.ts'
@@ -79,6 +81,23 @@ export interface SkinManifest {
    * external image assets.
    */
   styleOverrides?: Record<string, string>
+  /**
+   * Convenience color-only palette applied to every pressure stage before
+   * stage-specific styleOverrides win. Keys: body, belly, outline, eye,
+   * pupil, accent, ring.
+   */
+  palette?: SkinPalette
+}
+
+/** Color-only palette shared by every pressure stage. */
+export interface SkinPalette {
+  body?: string
+  belly?: string
+  outline?: string
+  eye?: string
+  pupil?: string
+  accent?: string
+  ring?: string
 }
 
 /** Localize display names only; manifest IDs and source data are never rewritten. */
@@ -121,6 +140,11 @@ export function validateSkinManifest(value: unknown): SkinManifest | null {
   const animationsRaw = v.animations && typeof v.animations === 'object' ? v.animations as Record<string, unknown> : undefined
   const animations = animationsRaw ? parseAnimations(animationsRaw) : undefined
   const styleOverridesRaw = stringRecord(v.styleOverrides)
+  const paletteRaw = v.palette && typeof v.palette === 'object' ? v.palette as Record<string, unknown> : undefined
+  const palette = paletteRaw
+    ? Object.fromEntries(Object.entries(paletteRaw).filter(([key, item]) =>
+      ['body', 'belly', 'outline', 'eye', 'pupil', 'accent', 'ring'].includes(key) && typeof item === 'string'))
+    : undefined
 
   const result: SkinManifest = { id: v.id, name: v.name, version: typeof v.version === 'string' ? v.version : '1', assets, actions }
   if (schemaVersion !== undefined) result.schemaVersion = schemaVersion
@@ -131,6 +155,7 @@ export function validateSkinManifest(value: unknown): SkinManifest | null {
   if (canvas !== undefined) result.canvas = canvas
   if (animations !== undefined && Object.keys(animations).length > 0) result.animations = animations
   if (styleOverridesRaw !== undefined && Object.keys(styleOverridesRaw).length > 0) result.styleOverrides = styleOverridesRaw
+  if (palette !== undefined && Object.keys(palette).length > 0) result.palette = palette
   return result
 }
 
@@ -185,9 +210,69 @@ export interface ImportedSkinBundle {
   totalBytes: number
 }
 
-/** ZIP import is intentionally host-owned: DSH client modules cannot load npm ZIP libraries. */
-export function importSkinZip(_input: ArrayBuffer | Uint8Array, _limits: { maxZipBytes?: number; maxFiles?: number; maxFileBytes?: number; maxTotalBytes?: number } = {}): ImportedSkinBundle {
-  throw new SkinImportError()
+export interface SkinZipLimits {
+  /** Max compressed ZIP input size. */
+  maxZipBytes?: number
+  /** Max number of entries (after safety filtering). */
+  maxFiles?: number
+  /** Max size of one extracted file. */
+  maxFileBytes?: number
+  /** Max total extracted bytes. */
+  maxTotalBytes?: number
+}
+
+export const DEFAULT_SKIN_ZIP_LIMITS: Required<SkinZipLimits> = {
+  maxZipBytes: 24 * 1024 * 1024,
+  maxFiles: 256,
+  maxFileBytes: 16 * 1024 * 1024,
+  maxTotalBytes: 64 * 1024 * 1024,
+}
+
+/**
+ * Import a skin ZIP entirely in the client. `fflate` is bundled into the
+ * browser half, so no host adapter is required. Extraction is asynchronous,
+ * entry paths are validated with {@link isSafeSkinEntryPath} before anything
+ * is retained, and every byte is bounded by the given limits (zip-bomb safe
+ * against retained output; see SKIN_SCHEMA for the layout contract).
+ *
+ * Throws {@link SkinImportError} with a stable `key` for every failure mode.
+ */
+export async function importSkinZip(input: ArrayBuffer | Uint8Array, limits: SkinZipLimits = {}): Promise<ImportedSkinBundle> {
+  const lim = { ...DEFAULT_SKIN_ZIP_LIMITS, ...limits }
+  const data = input instanceof ArrayBuffer ? new Uint8Array(input) : input
+  if (data.byteLength === 0) throw new SkinImportError('invalidZip')
+  if (data.byteLength > lim.maxZipBytes) throw new SkinImportError('tooLarge', { maxBytes: lim.maxZipBytes })
+  let files: Unzipped
+  try {
+    files = await new Promise<Unzipped>((resolve, reject) => {
+      unzip(data, (err, unzipped) => (err || !unzipped ? reject(err ?? new Error('unzip failed')) : resolve(unzipped)))
+    })
+  } catch {
+    throw new SkinImportError('invalidZip')
+  }
+  const entries = Object.keys(files)
+  if (entries.length === 0) throw new SkinImportError('invalidZip')
+  const checked = validateSkinBundleEntries(entries, lim.maxFiles)
+  if (!checked.ok) throw new SkinImportError('unsafeEntries', { paths: checked.invalid.slice(0, 3).join(', ') })
+  // The manifest must live at the ZIP root.
+  const manifestBytes = files['manifest.json']
+  if (!manifestBytes) throw new SkinImportError('noManifest')
+  if (manifestBytes.byteLength > lim.maxFileBytes) throw new SkinImportError('tooLarge', { maxBytes: lim.maxFileBytes })
+  let manifestValue: unknown
+  try { manifestValue = JSON.parse(strFromU8(manifestBytes)) } catch { throw new SkinImportError('invalidManifest', { detail: 'manifest.json is not valid JSON' }) }
+  const manifest = validateSkinManifest(manifestValue)
+  if (!manifest) throw new SkinImportError('invalidManifest', { detail: 'id/name missing or malformed' })
+  const out = new Map<string, Uint8Array>()
+  let totalBytes = 0
+  for (const [path, bytes] of Object.entries(files)) {
+    if (path === 'manifest.json') continue
+    if (!isSafeSkinEntryPath(path)) continue
+    if (bytes.byteLength > lim.maxFileBytes) throw new SkinImportError('tooLarge', { maxBytes: lim.maxFileBytes })
+    totalBytes += bytes.byteLength
+    if (totalBytes > lim.maxTotalBytes) throw new SkinImportError('tooLarge', { maxBytes: lim.maxTotalBytes })
+    out.set(path, bytes)
+  }
+  return { manifest, files: out, totalBytes }
 }
 
 // ---- Built-in skins (declarative, no external image assets) ----
@@ -230,7 +315,47 @@ export const GREEN_SPROUT_SKIN: SkinManifest = {
 }
 
 /** All built-in skins, indexed by id. */
-export const BUILTIN_SKINS: readonly SkinManifest[] = [GREEN_SPROUT_SKIN]
+export const BLUE_ICE_SKIN: SkinManifest = {
+  id: 'builtin.blue-ice',
+  name: '蓝冰',
+  schemaVersion: 1,
+  author: 'DSH Token Pet',
+  version: '1.0.0',
+  license: 'MIT',
+  nameLocalized: { 'zh-CN': '蓝冰', 'en-US': 'Blue Ice' },
+  description: { 'zh-CN': '冷静的蓝色调；仅改变配色，不改变身份与动作', 'en-US': 'A calm blue palette; identity and actions stay unchanged' },
+  palette: { body: '#7fb8e8', belly: '#d9effc', outline: '#4f8fc7', eye: '#16344f', pupil: '#0a1f30', accent: '#ffd27d', ring: '#7fb8e8' },
+  animations: {}, assets: {}, actions: {},
+}
+
+export const PURPLE_MIST_SKIN: SkinManifest = {
+  id: 'builtin.purple-mist',
+  name: '紫雾',
+  schemaVersion: 1,
+  author: 'DSH Token Pet',
+  version: '1.0.0',
+  license: 'MIT',
+  nameLocalized: { 'zh-CN': '紫雾', 'en-US': 'Purple Mist' },
+  description: { 'zh-CN': '神秘的紫色调；仅改变配色，不改变身份与动作', 'en-US': 'A mysterious purple palette; identity and actions stay unchanged' },
+  palette: { body: '#b39ce0', belly: '#e9e1f8', outline: '#8a6fc0', eye: '#2a1e4d', pupil: '#150e2e', accent: '#ffcf67', ring: '#b39ce0' },
+  animations: {}, assets: {}, actions: {},
+}
+
+export const ORANGE_CITRUS_SKIN: SkinManifest = {
+  id: 'builtin.orange-citrus',
+  name: '小橘',
+  schemaVersion: 1,
+  author: 'DSH Token Pet',
+  version: '1.0.0',
+  license: 'MIT',
+  nameLocalized: { 'zh-CN': '小橘', 'en-US': 'Orange Citrus' },
+  description: { 'zh-CN': '温暖的橘色调；仅改变配色，不改变身份与动作', 'en-US': 'A warm citrus palette; identity and actions stay unchanged' },
+  palette: { body: '#f0b36a', belly: '#fbe6c9', outline: '#c98a3e', eye: '#4a2c10', pupil: '#2a1806', accent: '#ff8f8f', ring: '#f0b36a' },
+  animations: {}, assets: {}, actions: {},
+}
+
+/** All built-in skins, indexed by id. */
+export const BUILTIN_SKINS: readonly SkinManifest[] = [GREEN_SPROUT_SKIN, BLUE_ICE_SKIN, PURPLE_MIST_SKIN, ORANGE_CITRUS_SKIN]
 
 /** Create a SkinIndex from built-in skins only (no IndexedDB dependency). */
 export function builtinSkinIndex(): SkinIndex {

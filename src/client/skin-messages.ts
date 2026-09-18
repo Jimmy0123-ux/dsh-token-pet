@@ -14,7 +14,11 @@ export const skinMessages = defineMessages({
   selectedBuiltin: { zh: '已切换到内置配色；缺失资源将回退到默认正式宠物或 SVG。', en: 'Switched to a built-in palette; missing assets fall back to the default pet or SVG.' },
   selectedCustom: { zh: '已切换皮肤；缺失资源将回退到默认正式宠物或 SVG。', en: 'Skin switched; missing assets fall back to the default pet or SVG.' },
   removed: { zh: '自定义皮肤已删除，已恢复默认正式宠物。', en: 'Custom skin deleted. The default pet has been restored.' },
-  zipUnsupported: { zh: '皮肤 ZIP 导入需要宿主适配器；客户端不会加载外部 ZIP 解包模块。', en: 'Skin ZIP import requires a host adapter; the client does not load external ZIP extraction modules.' },
+  invalidZip: { zh: '不是有效的皮肤 ZIP 文件。', en: 'Not a valid skin ZIP file.' },
+  tooLarge: { zh: '皮肤 ZIP 超出大小限制（{maxBytes} 字节）。', en: 'Skin ZIP exceeds the size limit ({maxBytes} bytes).' },
+  noManifest: { zh: '皮肤 ZIP 缺少 manifest.json。', en: 'Skin ZIP is missing manifest.json.' },
+  invalidManifest: { zh: '皮肤清单无效：{detail}', en: 'Invalid skin manifest: {detail}' },
+  unsafeEntries: { zh: '皮肤包含不安全路径：{paths}', en: 'Skin contains unsafe paths: {paths}' },
   installFailed: { zh: '皮肤安装失败：{detail}', en: 'Skin installation failed: {detail}' },
   listFailed: { zh: '无法读取已安装皮肤：{detail}', en: 'Unable to list installed skins: {detail}' },
   removeFailed: { zh: '皮肤删除失败：{detail}', en: 'Skin removal failed: {detail}' },
@@ -32,10 +36,11 @@ export function skinText(language: Language, key: SkinMessageKey, params?: Messa
 
 /** A stable key lets UI retranslate the error without matching Chinese text. */
 export class SkinImportError extends Error {
-  readonly key = 'zipUnsupported' as const
+  readonly key: SkinMessageKey
   readonly level = 'error' as const
-  constructor(language: Language = 'zh') {
-    super(skinText(language, 'zipUnsupported'))
+  constructor(key: SkinMessageKey, params?: MessageParams, language: Language = 'zh') {
+    super(skinText(language, key, params))
     this.name = 'SkinImportError'
+    this.key = key
   }
 }

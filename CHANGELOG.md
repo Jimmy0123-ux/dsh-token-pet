@@ -2,6 +2,35 @@
 
 All notable changes to this project are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Semantic Versioning](https://semver.org/).
 
+## [0.3.0] - 2026-09-18
+
+### Added
+
+- **成本估算（本地价格表）**：按 provider/model 与 Token 分类估算会话、模型、本月与终身成本；设置中可编辑价格表（USD / 1M token，支持 `claude-*` 前缀与 `*` 兜底），可切换 USD / CNY 显示；纯本地计算，不请求任何价格接口。
+- **月预算告警**：设置月预算后，当月估算成本超限时宠物播放 `warning` 预警动作（跨限只触发一次，回落后复位）；开启完成提示音时同时发声提醒。
+- **趋势范围切换**：本日小时趋势之外新增"近 7 日 / 近 30 日"按日聚合（数据来自账本 model/day 记录）。
+- **会话排行**：面板新增"最耗 Token 的会话"（最多 5 条），数据来自持久化用量索引的纯快照读取（新端点 `GET /token-pet/usage/sessions`），不扫描会话日志。
+- **导出用量数据**：设置页可导出 JSON（账本 + 趋势 + 会话快照）与 CSV（模型/日期明细）；仅统计数字，不含对话内容。
+- **皮肤 ZIP 客户端导入**：`importSkinZip` 改为客户端内 `fflate` 解包（不再需要宿主适配器），含路径校验、manifest 校验与大小上限（24MiB ZIP / 64MiB 解压）；新增稳定错误码 `invalidZip / tooLarge / noManifest / invalidManifest / unsafeEntries`。
+- **内置皮肤扩充**：新增蓝冰、紫雾、小橘三套纯配色皮肤；manifest 新增 `palette` 字段，按阶段全色板生效（`styleOverrides` 仍优先）。
+- **提示音主题与音量**：完成提示音支持"叮咚 / 气泡 / 轻柔"三种主题与音量调节（默认保持不变）。
+- 皮肤规范文档 `docs/SKIN_SCHEMA.zh-CN.md`（ZIP 布局、manifest v1、回退链、安全限制）。
+
+### Changed
+
+- `fflate` 从 devDependencies 移入 dependencies（客户端 bundle 内联，约 +40KiB）；tsdown 配置注释同步更新。
+- 设置页新增"成本与预算"卡片；通知卡片新增主题/音量控制；高级卡片新增导出入口。
+- 模型 Top5 与模型页新增估算成本列；概览新增成本卡片（本月成本 + 预算进度）。
+
+### Security
+
+- 皮肤导入仍在客户端边界内完成全部路径/大小校验；保留 `isSafeSkinEntryPath` 白名单，禁止穿越、绝对路径与可执行内容。
+
+### Validation
+
+- TypeScript host/client typecheck 通过；`npm test` 207/207 通过（新增 `tests/cost.test.mjs` 与皮肤 ZIP 导入用例）；资源审计 problems 为空；构建与 `npm pack --dry-run` 通过。
+- 未执行真实 DSH 页面浏览器验收与 24 小时稳定性记录；旧账迁移与市场备用 tgz 更新仍按 HANDOVER 保留。
+
 ## [0.2.0] - 2026-09-08
 
 ### Added
@@ -79,6 +108,8 @@ All notable changes to this project are documented here. The format follows [Kee
 - npm package installs with host entry, web client bundle, and `cordis.patch.yml` present.
 - GitHub CI passes on the public `main` branch.
 
-[Unreleased]: https://github.com/Jimmy0123-ux/dsh-token-pet/compare/v0.1.1...HEAD
+[Unreleased]: https://github.com/Jimmy0123-ux/dsh-token-pet/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/Jimmy0123-ux/dsh-token-pet/compare/v0.2.0...v0.3.0
+[0.2.0]: https://github.com/Jimmy0123-ux/dsh-token-pet/releases/tag/v0.2.0
 [0.1.1]: https://github.com/Jimmy0123-ux/dsh-token-pet/releases/tag/v0.1.1
 [0.1.0]: https://github.com/Jimmy0123-ux/dsh-token-pet/releases/tag/v0.1.0

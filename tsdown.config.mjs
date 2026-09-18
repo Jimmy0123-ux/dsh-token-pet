@@ -28,9 +28,9 @@ export default defineConfig({
   clean: true,
   deps: {
     neverBundle: PLATFORM_EXTERNALS,
-    // Do not bundle or externalize arbitrary npm packages. The loader only
-    // resolves the explicitly registered platform entries above; ZIP handling
-    // remains host-owned and the client has no fflate dependency.
+    // Everything else (including fflate, used by the client-side skin ZIP
+    // import) is bundled into the self-contained client.js. The loader only
+    // resolves the explicitly registered platform entries above.
   },
   define: {
     'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV ?? 'production'),

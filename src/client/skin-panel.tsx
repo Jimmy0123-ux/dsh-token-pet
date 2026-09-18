@@ -44,7 +44,7 @@ export function SkinImportPanel(p: { onImport?: (bundle: ImportedSkinBundle) => 
     if (!file) return
     setStatus({ level: 'info', key: 'installing' })
     try {
-      const bundle = importSkinZip(await file.arrayBuffer())
+      const bundle = await importSkinZip(await file.arrayBuffer())
       await installSkinBundle(bundle)
       p.onImport?.(bundle)
       saveSettings({ skinId: bundle.manifest.id })

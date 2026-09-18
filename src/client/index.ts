@@ -30,6 +30,7 @@ import {
   lifetimeLedgerOf,
   occupancyPercent,
   pressureOf,
+  sessionRankingOf,
   sessionStatsOf,
   stageForPercent,
   timelineOf,
@@ -38,6 +39,7 @@ import {
   totalBilled,
   type CumulativeUsage,
   type PetStageInfo,
+  type SessionRanking,
 } from './derive.ts'
 import { createContextSnapshot, reduceContextSnapshot } from '../growth.ts'
 import { PetSprite } from './pet.tsx'
@@ -58,10 +60,11 @@ import { createPanelRequestScope, PANEL_REQUEST_TIMEOUT_MS, shouldStartPanelRequ
 import { canReadTokenPetIndex, todayTrendRequestUrl, tokenPetIndexStatusOf } from './index-state.ts'
 import type { TokenPetIndexStatus } from '../index-contract.ts'
 import { createCompletionTracker, conversationTimelineOf } from './completion.ts'
-import { disposeCompletionSound, playCompletionSound, prepareCompletionSound, stopCompletionSound } from './completion-sound.ts'
+import { disposeCompletionSound, playCompletionSound, prepareCompletionSound, stopCompletionSound, configureCompletionSound } from './completion-sound.ts'
 import { translate } from './i18n.ts'
 import { useLanguage, useSettings } from './settings-hook.ts'
 import { SHELL_MESSAGES } from './shell-messages.ts'
+import { monthlyCostOfCells, parsePriceTable, DEFAULT_PRICES } from './cost.ts'
 
 /** React error boundary so the always-mounted pet NEVER disappears on a render error. */
 class ErrorBoundary extends Component<{ children?: unknown }, { error: unknown }> {
@@ -234,7 +237,27 @@ function useLifetimeLedger(reloadKey: number, enabled: boolean) {
   return { value, status }
 }
 
-/** Fetch today's real usage trend only when the panel is visible. */
+/** Per-session totals from the durable usage index (pure snapshot read). */
+function useSessionRanking(enabled: boolean): { value: SessionRanking | null; status: RequestStatus } {
+  const [value, setValue] = useState<SessionRanking | null>(null)
+  const [status, setStatus] = useState<RequestStatus>('idle')
+  useEffect(() => {
+    if (!enabled) { setStatus('idle'); return }
+    let cancelled = false
+    const request = createPanelRequestScope(PANEL_REQUEST_TIMEOUT_MS)
+    setStatus('loading')
+    fetch('/token-pet/usage/sessions?limit=8', { signal: request.signal })
+      .then((res) => res.ok ? res.json() : Promise.reject(new Error(`sessions:${res.status}`)))
+      .then((raw: unknown) => {
+        const next = sessionRankingOf(raw)
+        if (next === null) throw new Error('sessions:invalid-response')
+        if (!cancelled) { setValue(next); setStatus('ready') }
+      })
+      .catch(() => { if (!cancelled) setStatus('error') })
+    return () => { cancelled = true; request.dispose() }
+  }, [enabled])
+  return { value, status }
+}
 function useTodayUsageTrend(reloadKey: number, enabled: boolean): { value: TrendBucket[] | null; status: RequestStatus; readyKey: number | null; refreshing: boolean } {
   const [value, setValue] = useState<TrendBucket[] | null>(null)
   const valueRef = useRef(value); valueRef.current = value
@@ -646,6 +669,8 @@ function TokenPetWindow() {
   // Trend is backed by the durable index and is independent from Lifetime.
   const todayTrend = useTodayUsageTrend(trendReloadKey, canLoadTodayUsageTrend(panelOpen, panelPhase, indexUsable))
   const todayUsage = todayTrend.value
+  // Session ranking reads only the persisted usage-index snapshot (no scan).
+  const sessionRanking = useSessionRanking(panelOpen && panelPhase >= 1)
   // Unlock interactive tabs after the lightweight first paint. Data sections
   // own their loading/error states, so a missing index or failed request must
   // never leave Settings permanently unavailable.
@@ -666,6 +691,24 @@ function TokenPetWindow() {
     return () => { window.removeEventListener(SETTINGS_EVENT, onSettings); window.removeEventListener('storage', onSettings) }
   }, [])
   const animation = usePetAnimation(undefined, settings.animationSpeed)
+  // Keep the persisted sound theme/volume in sync before any notification.
+  useEffect(() => {
+    configureCompletionSound({ theme: settings.completionSoundTheme, volume: settings.completionSoundVolume })
+  }, [settings.completionSoundTheme, settings.completionSoundVolume])
+  // Monthly budget alert: warn once when the estimated monthly cost crosses
+  // the configured budget; reset only after it drops back below.
+  const budgetCrossed = useRef(false)
+  useEffect(() => {
+    const monthly = monthlyCostOfCells(lifetimeLedger.value?.byModelDay ?? [], parsePriceTable(settings.priceTable) ?? DEFAULT_PRICES)
+    const over = settings.budgetEnabled && monthly >= Math.max(0, settings.budgetMonthly)
+    if (over && !budgetCrossed.current) {
+      budgetCrossed.current = true
+      animation.publish({ action: 'warning', dedupeKey: 'budget-warning' })
+      if (settings.completionSound) playCompletionSound()
+    } else if (!over) {
+      budgetCrossed.current = false
+    }
+  }, [settings.budgetEnabled, settings.budgetMonthly, settings.priceTable, settings.completionSound, lifetimeLedger.value, animation])
   const previousStage = useRef<string | null>(null)
   const previousPercent = useRef<number | null>(null)
   const previousTurns = useRef<number | null>(null)
@@ -933,6 +976,8 @@ function TokenPetWindow() {
         onSendPrompt: snap?.sendPrompt,
          trendStatus: todayTrend.status,
          refreshing: todayTrend.refreshing,
+         sessionRanking: sessionRanking.value,
+         sessionRankingStatus: sessionRanking.status,
          indexProgress,
          onBuildIndex: buildIndex,
          onCancelIndex: cancelIndex,

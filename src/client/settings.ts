@@ -1,4 +1,7 @@
 /** Persistent token-pet preferences. Safe in SSR/headless environments. */
+import type { SoundTheme } from './completion-sound.ts'
+import { DEFAULT_PRICE_TABLE_JSON, isCostCurrency, parsePriceTable, type CostCurrency } from './cost.ts'
+
 export interface TokenPetSettings {
   size: number
   position: { x: number; y: number }
@@ -10,16 +13,29 @@ export interface TokenPetSettings {
   language: 'zh' | 'en'
   /** Opt-in sound for a newly completed response in the current conversation. */
   completionSound: boolean
+  /** Sound theme/volume applied to completion and budget notifications. */
+  completionSoundTheme: SoundTheme
+  completionSoundVolume: number
   enhancementEnabled: boolean
   enhancementTemplate: string
   enhancementModel: string
   skinId: string
+  /** Local editable price table (JSON). See cost.ts for the schema. */
+  priceTable: string
+  /** Display currency for cost estimates. */
+  currency: CostCurrency
+  /** Opt-in monthly budget alert. */
+  budgetEnabled: boolean
+  /** Monthly budget in USD (compared against the estimated monthly cost). */
+  budgetMonthly: number
 }
 
 export const DEFAULT_SETTINGS: TokenPetSettings = {
   size: 120, position: { x: 0, y: 0 }, panelPosition: { x: 0, y: 0 }, panelWidth: 500, panelHeight: 620, animationSpeed: 1,
-  lowPerformance: false, language: 'zh', completionSound: false, enhancementEnabled: true,
+  lowPerformance: false, language: 'zh', completionSound: false, completionSoundTheme: 'chime', completionSoundVolume: 1,
+  enhancementEnabled: true,
   enhancementTemplate: '请优化以下提示词，保留原意并提升清晰度：\n\n{{prompt}}', enhancementModel: '', skinId: 'default',
+  priceTable: DEFAULT_PRICE_TABLE_JSON, currency: 'USD', budgetEnabled: false, budgetMonthly: 10,
 }
 export const DEFAULT_ENHANCEMENT_TEMPLATES = {
   zh: DEFAULT_SETTINGS.enhancementTemplate,
@@ -49,6 +65,7 @@ export function clampFloatingOffset(offset: { x: number; y: number }, base: Floa
 }
 export function normalizeSettings(raw: unknown): TokenPetSettings {
   const r = (raw && typeof raw === 'object' ? raw : {}) as Partial<TokenPetSettings>
+  const theme = r.completionSoundTheme
   return {
     ...DEFAULT_SETTINGS, ...r,
     size: clamp(r.size, 64, 320, DEFAULT_SETTINGS.size),
@@ -61,9 +78,15 @@ export function normalizeSettings(raw: unknown): TokenPetSettings {
     enhancementEnabled: typeof r.enhancementEnabled === 'boolean' ? r.enhancementEnabled : DEFAULT_SETTINGS.enhancementEnabled,
     language: r.language === 'en' ? 'en' : 'zh',
     completionSound: typeof r.completionSound === 'boolean' ? r.completionSound : false,
+    completionSoundTheme: theme === 'chime' || theme === 'pop' || theme === 'soft' ? theme : DEFAULT_SETTINGS.completionSoundTheme,
+    completionSoundVolume: clamp(r.completionSoundVolume, 0, 1, DEFAULT_SETTINGS.completionSoundVolume),
     enhancementTemplate: typeof r.enhancementTemplate === 'string' ? r.enhancementTemplate : DEFAULT_SETTINGS.enhancementTemplate,
     enhancementModel: typeof r.enhancementModel === 'string' ? r.enhancementModel : '',
      skinId: typeof r.skinId === 'string' && /^[a-z0-9][a-z0-9._-]*$/i.test(r.skinId) ? r.skinId : 'default',
+    priceTable: typeof r.priceTable === 'string' && parsePriceTable(r.priceTable) ? r.priceTable : DEFAULT_PRICE_TABLE_JSON,
+    currency: isCostCurrency(r.currency) ? r.currency : DEFAULT_SETTINGS.currency,
+    budgetEnabled: typeof r.budgetEnabled === 'boolean' ? r.budgetEnabled : DEFAULT_SETTINGS.budgetEnabled,
+    budgetMonthly: clamp(r.budgetMonthly, 0, 100000, DEFAULT_SETTINGS.budgetMonthly),
   }
 }
 export function loadSettings(): TokenPetSettings {

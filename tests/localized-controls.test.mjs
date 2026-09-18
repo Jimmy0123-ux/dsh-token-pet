@@ -30,6 +30,8 @@ function host(file, name, overrides = {}) {
   Object.assign(modules, overrides)
   function compile(path) { const source = readFileSync(new URL(`../src/client/${path}`, import.meta.url), 'utf8'); const js = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText; const module = { exports: {} }; new Function('require','module','exports',js)(key => { assert.ok(key in modules, `Missing test dependency ${key}`); return modules[key] }, module, module.exports); return module.exports }
   modules['./settings-hook.ts'] = compile('settings-hook.ts')
+  modules['./cost.ts'] = compile('cost.ts')
+  modules['./export-data.ts'] = compile('export-data.ts')
   const Component = compile(file)[name]
   return { render(props = {}) { cursor = 0; const tree = Component(props); const effects = pending; pending = []; effects.forEach(fn => fn()); return tree }, unmount() { slots.forEach(s => s?.cleanup?.()) }, get writes() { return writes } }
 }
@@ -179,10 +181,11 @@ test('maintenance failures retranslate in place and retain alert semantics', asy
   const c = host('trend-maintenance-panel.tsx','TrendIndexMaintenancePanel')
   try { c.render(); await Promise.resolve(); let tree = c.render(); assert.equal(find(tree,'feedback').props.role,'alert'); assert.match(text(find(tree,'feedback')),/503/); settings.saveSettings({ language:'en' }); tree = c.render(); assert.equal(find(tree,'feedback').props.role,'alert'); assert.doesNotMatch(text(tree),/[\u3400-\u9fff]/) } finally { c.unmount(); globalThis.fetch = originalFetch; restore() }
 })
-test('skin names, unsupported ZIP, status labels and lifetime warnings are localized', () => {
+test('skin names, import errors, status labels and lifetime warnings are localized', async () => {
   assert.equal(skins.skinDisplayName(skins.GREEN_SPROUT_SKIN,'en'),'Green Sprout')
-  assert.throws(() => skins.importSkinZip(new Uint8Array()), error => error.key === 'zipUnsupported' && /宿主/.test(error.message))
-  assert.match(skinMessages.skinText('en','zipUnsupported'),/host adapter/)
+  await assert.rejects(skins.importSkinZip(new Uint8Array()), error => error.key === 'invalidZip')
+  assert.match(skinMessages.skinText('en','noManifest'),/manifest/)
+  assert.match(skinMessages.skinText('zh','unsafeEntries',{ paths: 'x' }),/不安全/)
   const status = maintenance.trendIndexStatusOf({ health:'ready', operation:'repairing', snapshotOnly:true, repairCount:3 })
   assert.match(maintenance.trendOperationLabel(status,'en'),/3/); assert.match(maintenance.trendOperationLabel(status,'zh'),/修复/)
   assert.equal(lifetimeLedgerClearWarning('zh'),LIFETIME_LEDGER_CLEAR_WARNING); assert.match(lifetimeLedgerClearWarning('en'),/permanently/i)

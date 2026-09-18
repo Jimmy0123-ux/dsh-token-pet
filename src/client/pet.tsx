@@ -92,11 +92,17 @@ function eyesFor(_stage: PetStage, meta: (typeof STAGE_META)[PetStage]) {
   ])]
 }
 
-/** Pressure bands may override only the warning ring; identity colors and geometry stay fixed. */
+const PALETTE_KEYS = ['body', 'belly', 'outline', 'eye', 'pupil', 'accent', 'ring'] as const
+
+/** Skins may override the full color palette per stage or via a shared palette. */
 function stageMetaWithSkin(stage: PetStage, skin?: SkinManifest): (typeof STAGE_META)[PetStage] {
   const base = STAGE_META[stage]
-  const ring = resolveStyleOverride(skin, `${stage}.ring`) ?? base.ring
-  return { ...base, ring }
+  const out = { ...base }
+  for (const key of PALETTE_KEYS) {
+    const override = resolveStyleOverride(skin, `${stage}.${key}`) ?? skin?.palette?.[key]
+    if (override) out[key] = override
+  }
+  return out
 }
 
 /**
