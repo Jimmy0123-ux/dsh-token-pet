@@ -5,6 +5,7 @@ import { renderToStaticMarkup as render } from 'react-dom/server'
 import { ContextPanel, LifetimeClearConfirmation, LifetimeClearFeedback, formatPanelDate, panelPhaseSections, modelDisplayName, PANEL_TABS } from '../src/client/panel.tsx'
 import { panelContentGrid, fitPanelSizeToViewport } from '../src/client/layout.ts'
 import { panelMessages, panelText } from '../src/client/panel-messages.ts'
+import { normalizeSettings } from '../src/client/settings.ts'
 
 const totals = { uncachedInputTokens: 11, outputTokens: 7, cacheReadTokens: 3, cacheWriteTokens: 2 }
 const ledger = { sessions: 2, total: 23, totals, byModel: [{ provider: 'UserProvider', model: 'UserModel-With-A-Very-Long-Identifier'.repeat(4), total: 23 }] }
@@ -142,6 +143,26 @@ test('cost surfaces are hidden when the cost display switch is off', () => {
     globalThis.localStorage.getItem = (k) => k === key ? null : null
     const on = htmlFor('zh', ready)
     assert.ok(on.includes('data-testid="cost-estimate"'), 'cost card visible by default')
+  } finally {
+    if (oldStorage === undefined) delete globalThis.localStorage
+    else globalThis.localStorage = oldStorage
+  }
+})
+
+test('theme switch renders light CSS variables on the panel root and normalizes settings', () => {
+  const key = 'dsh-token-pet.settings.v1'
+  const oldStorage = globalThis.localStorage
+  const store = new Map([[key, JSON.stringify({ theme: 'light' })]])
+  globalThis.localStorage = { getItem: (k) => store.get(k) ?? null, setItem: () => {}, removeItem: () => {} }
+  try {
+    const html = htmlFor('zh', { lifetimeStatus: 'ready', lifetimeLedger: ledger })
+    assert.ok(html.includes('--tp-panel-bg'), 'theme variables injected on the panel root')
+    assert.ok(html.includes('#fbfcff'), 'light panel gradient present')
+    assert.ok(html.includes('--tp-text'), 'text variable present')
+    // Dark remains the default and corrupt values fall back to it.
+    assert.equal(normalizeSettings({ theme: 'bogus' }).theme, 'dark')
+    assert.equal(normalizeSettings({ theme: 'light' }).theme, 'light')
+    assert.equal(normalizeSettings({ theme: 'dark' }).theme, 'dark')
   } finally {
     if (oldStorage === undefined) delete globalThis.localStorage
     else globalThis.localStorage = oldStorage

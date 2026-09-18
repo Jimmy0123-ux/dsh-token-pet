@@ -32,6 +32,7 @@ function host(file, name, overrides = {}) {
   modules['./settings-hook.ts'] = compile('settings-hook.ts')
   modules['./cost.ts'] = compile('cost.ts')
   modules['./export-data.ts'] = compile('export-data.ts')
+  modules['./theme.ts'] = compile('theme.ts')
   const Component = compile(file)[name]
   return { render(props = {}) { cursor = 0; const tree = Component(props); const effects = pending; pending = []; effects.forEach(fn => fn()); return tree }, unmount() { slots.forEach(s => s?.cleanup?.()) }, get writes() { return writes } }
 }

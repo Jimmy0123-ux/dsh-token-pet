@@ -8,6 +8,7 @@ import { useLanguage, useSettings } from './settings-hook.ts'
 import { panelContentGrid } from './layout.ts'
 import { panelText } from './panel-messages.ts'
 import { costOfTotals, dayTotalsOfCells, formatCost, monthlyCostOfCells, parsePriceTable, resolvePrice, DEFAULT_PRICES, costPerModel } from './cost.ts'
+import { themeVars } from './theme.ts'
 import type { TokenPetIndexState } from '../index-contract.ts'
 
 /** Contract for staged opening: keep the first paint lightweight. */
@@ -102,11 +103,11 @@ function Sparkline({ data, language }: { data: TrendBucket[]; language: Language
       h('span', { key: 'tokens' }, t('requests', { tokens: formatTokens(selected.total), count: selected.count })),
     ]) : null,
     h('svg', { key: 'chart', viewBox: `0 0 ${width} ${height}`, preserveAspectRatio: 'none', style: css(chartSvg), onMouseLeave: () => setHovered(null) }, [
-      h('path', { key: 'area', d: `${line} L ${points.at(-1)?.x ?? width} ${height} L ${points[0]?.x ?? 0} ${height} Z`, fill: 'rgba(124,150,255,.16)' }),
-      h('path', { key: 'line', d: line, fill: 'none', stroke: '#91a7ff', strokeWidth: 2, vectorEffect: 'non-scaling-stroke' }),
+      h('path', { key: 'area', d: `${line} L ${points.at(-1)?.x ?? width} ${height} L ${points[0]?.x ?? 0} ${height} Z`, fill: 'var(--tp-accent-soft-2)' }),
+      h('path', { key: 'line', d: line, fill: 'none', stroke: 'var(--tp-accent)', strokeWidth: 2, vectorEffect: 'non-scaling-stroke' }),
       ...points.map((point, index) => h('circle', {
         key: `${point.start}-${index}`, cx: point.x, cy: point.y, r: hovered === index ? 4 : 2.5,
-        fill: '#eef1ff', stroke: '#7c96ff', strokeWidth: 1.5, vectorEffect: 'non-scaling-stroke', tabIndex: 0,
+        fill: 'var(--tp-solid-2)', stroke: 'var(--tp-accent)', strokeWidth: 1.5, vectorEffect: 'non-scaling-stroke', tabIndex: 0,
         'aria-label': `${formatPanelDate(point.start, language)}, ${t('requests', { tokens: formatTokens(point.total), count: point.count })}`,
         onPointerEnter: () => setHovered(index), onFocus: () => setHovered(index), onBlur: () => setHovered(null),
       })),
@@ -305,7 +306,7 @@ export function ContextPanel(p: PanelProps) {
         h('span', { key: 'label' }, `${t('budget')} ${formatCost(preferences.budgetMonthly, preferences.currency)}`),
         h('span', { key: 'used' }, t('budgetUsed', { percent: budgetPercent.toFixed(0) })),
       ]) : null,
-      preferences.budgetEnabled ? h('div', { key: 'bar', style: css(budgetBar), role: 'meter', 'aria-valuenow': Math.round(budgetPercent), 'aria-valuemin': 0, 'aria-valuemax': 100 }, h('span', { key: 'fill', style: css({ display: 'block', width: `${budgetPercent}%`, height: '100%', borderRadius: 999, background: overBudget ? '#d98282' : '#91a7ff' }) })) : null,
+      preferences.budgetEnabled ? h('div', { key: 'bar', style: css(budgetBar), role: 'meter', 'aria-valuenow': Math.round(budgetPercent), 'aria-valuemin': 0, 'aria-valuemax': 100 }, h('span', { key: 'fill', style: css({ display: 'block', width: `${budgetPercent}%`, height: '100%', borderRadius: 999, background: overBudget ? 'var(--tp-danger)' : 'var(--tp-accent)' }) })) : null,
       h('div', { key: 'note', style: css(note) }, t('budgetNote')),
     ])] : []),
     h('div', { key: 'insights', style: css(panelContentGrid()) }, [
@@ -369,7 +370,7 @@ export function ContextPanel(p: PanelProps) {
   const settings = sections.settings ? h('div', { style: css(pageStack) }, [h<{ language?: Language }>(TokenPetSettingsPanel, { key: 'settings', language })]) : h('div', { style: css(emptyState) }, t('settingsLoading'))
   const content = tab === 'overview' ? overview : tab === 'models' ? models : settings
 
-  return h('div', { role: 'region', lang: localeFor(language), 'aria-label': t('panel'), style: css({ ...root, ...(p.width ? { width: p.width } : {}), ...(p.height ? { height: p.height } : {}), ...(p.maxHeight ? { maxHeight: p.maxHeight } : {}) }) }, [
+  return h('div', { role: 'region', lang: localeFor(language), 'aria-label': t('panel'), style: css({ ...root, ...themeVars(preferences.theme), ...(p.width ? { width: p.width } : {}), ...(p.height ? { height: p.height } : {}), ...(p.maxHeight ? { maxHeight: p.maxHeight } : {}) }) }, [
     h('nav', { key: 'tabs', role: 'tablist', 'aria-label': t('tabs'), style: css(tabBar) }, PANEL_TABS.map((item) => h('button', {
       key: item.id, type: 'button', role: 'tab', 'aria-selected': tab === item.id,
       onClick: () => setTab(item.id), style: css({ ...tabButton, ...(tab === item.id ? activeTabButton : {}) }),
@@ -385,58 +386,58 @@ function summaryCell(label: string, value: string) {
   return h('div', { key: label, style: css(summaryCellStyle) }, [h('span', { key: 'label', style: css(statLabel) }, label), h('strong', { key: 'value', style: css(statValue) }, value)])
 }
 
-const root: import('react').CSSProperties = { position: 'relative', display: 'flex', flexDirection: 'column', minWidth: 0, minHeight: 0, boxSizing: 'border-box', overflow: 'hidden', borderRadius: 16, border: '1px solid rgba(145,167,255,.28)', background: 'linear-gradient(145deg,rgba(31,35,55,.98),rgba(20,22,34,.99))', color: '#e8eaf2', fontSize: 12, lineHeight: 1.5, boxShadow: '0 10px 30px rgba(0,0,0,.35)', userSelect: 'text', maxWidth: '100%', overflowWrap: 'anywhere' }
-const tabBar: import('react').CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(3,minmax(0,1fr))', gap: 4, flex: 'none', padding: '8px 10px', borderBottom: '1px solid rgba(145,167,255,.18)', background: 'rgba(16,18,29,.7)' }
-const tabButton: import('react').CSSProperties = { minWidth: 0, padding: '7px 5px', border: '1px solid transparent', borderRadius: 8, color: '#9aa0b5', background: 'transparent', cursor: 'pointer', fontSize: 12, fontWeight: 600 }
-const activeTabButton: import('react').CSSProperties = { color: '#fff', borderColor: 'rgba(145,167,255,.44)', background: 'rgba(124,150,255,.16)', boxShadow: 'inset 0 0 0 1px rgba(145,167,255,.08)' }
+const root: import('react').CSSProperties = { position: 'relative', display: 'flex', flexDirection: 'column', minWidth: 0, minHeight: 0, boxSizing: 'border-box', overflow: 'hidden', borderRadius: 16, border: '1px solid var(--tp-border-strong)', background: 'var(--tp-panel-bg)', color: 'var(--tp-text)', fontSize: 12, lineHeight: 1.5, boxShadow: 'var(--tp-shadow)', userSelect: 'text', maxWidth: '100%', overflowWrap: 'anywhere' }
+const tabBar: import('react').CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(3,minmax(0,1fr))', gap: 4, flex: 'none', padding: '8px 10px', borderBottom: '1px solid var(--tp-border-2)', background: 'var(--tp-tab-bg)' }
+const tabButton: import('react').CSSProperties = { minWidth: 0, padding: '7px 5px', border: '1px solid transparent', borderRadius: 8, color: 'var(--tp-text-2)', background: 'transparent', cursor: 'pointer', fontSize: 12, fontWeight: 600 }
+const activeTabButton: import('react').CSSProperties = { color: 'var(--tp-on-accent)', borderColor: 'var(--tp-border-strong)', background: 'var(--tp-accent-soft-2)', boxShadow: 'inset 0 0 0 1px var(--tp-border-strong)' }
 const scroller: import('react').CSSProperties = { flex: '1 1 auto', minWidth: 0, minHeight: 0, overflowY: 'auto', overflowX: 'hidden', overscrollBehavior: 'contain', scrollbarGutter: 'stable', padding: '12px 12px 56px', scrollPaddingBlock: '12px 56px', touchAction: 'pan-y' }
 const pageStack: import('react').CSSProperties = { display: 'flex', flexDirection: 'column', gap: 10, minWidth: 0 }
-const card: import('react').CSSProperties = { boxSizing: 'border-box', minWidth: 0, padding: 11, borderRadius: 11, border: '1px solid rgba(128,128,160,.2)', background: 'rgba(12,15,27,.34)' }
-const heroCard: import('react').CSSProperties = { ...card, borderColor: 'rgba(196,167,255,.42)', background: 'linear-gradient(145deg,rgba(119,87,190,.15),rgba(12,15,27,.42))' }
-const eyebrow: import('react').CSSProperties = { color: '#c4a7ff', fontSize: 10, fontWeight: 700, letterSpacing: '.12em', textTransform: 'uppercase', marginBottom: 3 }
+const card: import('react').CSSProperties = { boxSizing: 'border-box', minWidth: 0, padding: 11, borderRadius: 11, border: '1px solid var(--tp-border)', background: 'var(--tp-card-bg)' }
+const heroCard: import('react').CSSProperties = { ...card, borderColor: 'var(--tp-border-strong)', background: 'var(--tp-hero-bg)' }
+const eyebrow: import('react').CSSProperties = { color: 'var(--tp-accent-2)', fontSize: 10, fontWeight: 700, letterSpacing: '.12em', textTransform: 'uppercase', marginBottom: 3 }
 const sectionHeading: import('react').CSSProperties = { display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 7, minWidth: 0 }
-const heroTotal: import('react').CSSProperties = { color: '#c4a7ff', fontSize: 22, fontWeight: 800, fontVariantNumeric: 'tabular-nums' }
+const heroTotal: import('react').CSSProperties = { color: 'var(--tp-accent-2)', fontSize: 22, fontWeight: 800, fontVariantNumeric: 'tabular-nums' }
 const contextHeadline: import('react').CSSProperties = { display: 'flex', alignItems: 'baseline', flexWrap: 'wrap', justifyContent: 'space-between', gap: 8, marginTop: 7 }
-const contextPercent: import('react').CSSProperties = { color: '#fff', fontSize: 22, lineHeight: 1, fontWeight: 800, fontVariantNumeric: 'tabular-nums' }
-const compositionBar: import('react').CSSProperties = { display: 'flex', gap: 1, width: '100%', height: 5, marginTop: 9, overflow: 'hidden', borderRadius: 999, background: 'rgba(128,128,160,.16)' }
-const subtle: import('react').CSSProperties = { color: '#8f96ad', fontSize: 10, fontWeight: 400 }
-const note: import('react').CSSProperties = { color: '#9aa0b5', fontSize: 10, marginTop: 7 }
+const contextPercent: import('react').CSSProperties = { color: 'var(--tp-text)', fontSize: 22, lineHeight: 1, fontWeight: 800, fontVariantNumeric: 'tabular-nums' }
+const compositionBar: import('react').CSSProperties = { display: 'flex', gap: 1, width: '100%', height: 5, marginTop: 9, overflow: 'hidden', borderRadius: 999, background: 'var(--tp-track)' }
+const subtle: import('react').CSSProperties = { color: 'var(--tp-text-3)', fontSize: 10, fontWeight: 400 }
+const note: import('react').CSSProperties = { color: 'var(--tp-text-2)', fontSize: 10, marginTop: 7 }
 const tokenGrid: import('react').CSSProperties = { display: 'grid', gridTemplateColumns: panelContentGrid(92).gridTemplateColumns, gap: 6, marginTop: 9 }
-const statCellStyle: import('react').CSSProperties = { minWidth: 0, display: 'flex', flexDirection: 'column', padding: '6px 7px', borderRadius: 7, background: 'rgba(128,128,160,.1)' }
-const statValue: import('react').CSSProperties = { minWidth: 0, color: '#fff', fontSize: 12, fontVariantNumeric: 'tabular-nums', overflowWrap: 'anywhere', whiteSpace: 'normal' }
-const statLabel: import('react').CSSProperties = { color: '#8f96ad', fontSize: 10, whiteSpace: 'normal' }
+const statCellStyle: import('react').CSSProperties = { minWidth: 0, display: 'flex', flexDirection: 'column', padding: '6px 7px', borderRadius: 7, background: 'var(--tp-hover-row)' }
+const statValue: import('react').CSSProperties = { minWidth: 0, color: 'var(--tp-text)', fontSize: 12, fontVariantNumeric: 'tabular-nums', overflowWrap: 'anywhere', whiteSpace: 'normal' }
+const statLabel: import('react').CSSProperties = { color: 'var(--tp-text-3)', fontSize: 10, whiteSpace: 'normal' }
 const list: import('react').CSSProperties = { display: 'flex', flexDirection: 'column', gap: 3, marginTop: 8 }
 const modelRow: import('react').CSSProperties = { display: 'grid', gridTemplateColumns: '24px minmax(0,1fr) auto auto', alignItems: 'center', gap: 7, minWidth: 0, padding: '4px 0' }
-const rank: import('react').CSSProperties = { color: '#6f7895', fontSize: 10, fontVariantNumeric: 'tabular-nums' }
-const modelName: import('react').CSSProperties = { color: '#cfd4e8', minWidth: 0, overflowWrap: 'anywhere', whiteSpace: 'normal' }
-const fullModelName: import('react').CSSProperties = { minWidth: 0, overflowWrap: 'anywhere', color: '#dce1f5' }
-const modelValue: import('react').CSSProperties = { color: '#ffd166', whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums' }
-const modelCost: import('react').CSSProperties = { color: '#9fd0a8', whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums', fontSize: 10 }
-const modelCostLine: import('react').CSSProperties = { color: '#9fd0a8', fontSize: 10, marginTop: 4 }
+const rank: import('react').CSSProperties = { color: 'var(--tp-text-4)', fontSize: 10, fontVariantNumeric: 'tabular-nums' }
+const modelName: import('react').CSSProperties = { color: 'var(--tp-text)', minWidth: 0, overflowWrap: 'anywhere', whiteSpace: 'normal' }
+const fullModelName: import('react').CSSProperties = { minWidth: 0, overflowWrap: 'anywhere', color: 'var(--tp-text)' }
+const modelValue: import('react').CSSProperties = { color: 'var(--tp-gold)', whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums' }
+const modelCost: import('react').CSSProperties = { color: 'var(--tp-success)', whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums', fontSize: 10 }
+const modelCostLine: import('react').CSSProperties = { color: 'var(--tp-success)', fontSize: 10, marginTop: 4 }
 const rangeGroup: import('react').CSSProperties = { display: 'flex', gap: 4, flexWrap: 'wrap' }
 const rangeButton = (active: boolean): import('react').CSSProperties => ({
-  color: active ? '#fff' : '#9aa0b5', background: active ? 'rgba(124,150,255,.22)' : 'transparent',
-  border: active ? '1px solid rgba(145,167,255,.5)' : '1px solid rgba(128,128,160,.25)',
+  color: active ? 'var(--tp-on-accent)' : 'var(--tp-text-2)', background: active ? 'var(--tp-accent-soft-2)' : 'transparent',
+  border: active ? '1px solid var(--tp-border-strong)' : '1px solid var(--tp-border-2)',
   borderRadius: 6, padding: '2px 7px', cursor: 'pointer', fontSize: 10,
 })
-const budgetRow: import('react').CSSProperties = { display: 'flex', justifyContent: 'space-between', gap: 8, marginTop: 8, color: '#cfd4e8', fontSize: 11, flexWrap: 'wrap' }
-const budgetBar: import('react').CSSProperties = { display: 'block', width: '100%', height: 6, marginTop: 7, overflow: 'hidden', borderRadius: 999, background: 'rgba(128,128,160,.18)' }
-const overBudgetText: import('react').CSSProperties = { color: '#ffb4a8', fontSize: 11, marginTop: 7 }
-const providerTag: import('react').CSSProperties = { boxSizing: 'border-box', minWidth: 0, maxWidth: '100%', color: '#91a7ff', fontSize: 10, padding: '2px 6px', borderRadius: 6, background: 'rgba(124,150,255,.12)', overflowWrap: 'anywhere', whiteSpace: 'normal' }
-const compactSummary: import('react').CSSProperties = { display: 'flex', justifyContent: 'space-between', gap: 8, marginTop: 9, color: '#cfd4e8', fontSize: 11 }
+const budgetRow: import('react').CSSProperties = { display: 'flex', justifyContent: 'space-between', gap: 8, marginTop: 8, color: 'var(--tp-text-2)', fontSize: 11, flexWrap: 'wrap' }
+const budgetBar: import('react').CSSProperties = { display: 'block', width: '100%', height: 6, marginTop: 7, overflow: 'hidden', borderRadius: 999, background: 'var(--tp-track)' }
+const overBudgetText: import('react').CSSProperties = { color: 'var(--tp-danger)', fontSize: 11, marginTop: 7 }
+const providerTag: import('react').CSSProperties = { boxSizing: 'border-box', minWidth: 0, maxWidth: '100%', color: 'var(--tp-accent-text)', fontSize: 10, padding: '2px 6px', borderRadius: 6, background: 'var(--tp-accent-soft)', overflowWrap: 'anywhere', whiteSpace: 'normal' }
+const compactSummary: import('react').CSSProperties = { display: 'flex', justifyContent: 'space-between', gap: 8, marginTop: 9, color: 'var(--tp-text-2)', fontSize: 11 }
 const summaryGrid: import('react').CSSProperties = { display: 'grid', gridTemplateColumns: panelContentGrid(92).gridTemplateColumns, gap: 6, marginTop: 9 }
-const summaryCellStyle: import('react').CSSProperties = { minWidth: 0, display: 'flex', flexDirection: 'column', gap: 1, padding: '6px 7px', borderRadius: 7, background: 'rgba(128,128,160,.08)' }
-const indexLine: import('react').CSSProperties = { display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginTop: 8, color: '#aab0c5', fontSize: 10 }
-const textButton: import('react').CSSProperties = { color: '#91a7ff', background: 'transparent', border: 0, padding: 2, cursor: 'pointer', fontSize: 10 }
-const pageIntro: import('react').CSSProperties = { display: 'flex', flexDirection: 'column', gap: 2, color: '#9aa0b5', fontSize: 10 }
-const emptyState: import('react').CSSProperties = { color: '#8f96ad', padding: '14px 2px', textAlign: 'center' }
-const errorText: import('react').CSSProperties = { ...emptyState, color: '#ffb4a8' }
+const summaryCellStyle: import('react').CSSProperties = { minWidth: 0, display: 'flex', flexDirection: 'column', gap: 1, padding: '6px 7px', borderRadius: 7, background: 'var(--tp-hover-row)' }
+const indexLine: import('react').CSSProperties = { display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginTop: 8, color: 'var(--tp-text-2)', fontSize: 10 }
+const textButton: import('react').CSSProperties = { color: 'var(--tp-accent-text)', background: 'transparent', border: 0, padding: 2, cursor: 'pointer', fontSize: 10 }
+const pageIntro: import('react').CSSProperties = { display: 'flex', flexDirection: 'column', gap: 2, color: 'var(--tp-text-2)', fontSize: 10 }
+const emptyState: import('react').CSSProperties = { color: 'var(--tp-text-3)', padding: '14px 2px', textAlign: 'center' }
+const errorText: import('react').CSSProperties = { ...emptyState, color: 'var(--tp-danger)' }
 const chartWrap: import('react').CSSProperties = { position: 'relative', width: '100%', minWidth: 0, marginTop: 10 }
 const chartSvg: import('react').CSSProperties = { display: 'block', width: '100%', height: 92, overflow: 'visible' }
-const chartAxis: import('react').CSSProperties = { display: 'flex', justifyContent: 'space-between', color: '#7f879f', fontSize: 10 }
-const tooltip: import('react').CSSProperties = { position: 'absolute', top: 0, left: 0, right: 0, boxSizing: 'border-box', zIndex: 2, display: 'flex', flexDirection: 'column', minWidth: 0, maxWidth: '100%', padding: '6px 8px', borderRadius: 7, background: 'rgba(18,21,34,.98)', border: '1px solid rgba(145,167,255,.55)', color: '#eef1ff', fontSize: 10, pointerEvents: 'none', whiteSpace: 'normal' }
+const chartAxis: import('react').CSSProperties = { display: 'flex', justifyContent: 'space-between', color: 'var(--tp-text-4)', fontSize: 10 }
+const tooltip: import('react').CSSProperties = { position: 'absolute', top: 0, left: 0, right: 0, boxSizing: 'border-box', zIndex: 2, display: 'flex', flexDirection: 'column', minWidth: 0, maxWidth: '100%', padding: '6px 8px', borderRadius: 7, background: 'var(--tp-solid-2)', border: '1px solid var(--tp-border-strong)', color: 'var(--tp-text)', fontSize: 10, pointerEvents: 'none', whiteSpace: 'normal' }
 const buttonRow: import('react').CSSProperties = { display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 7 }
-const secondaryButton: import('react').CSSProperties = { minWidth: 0, overflowWrap: 'anywhere', flex: '1 1 100px', color: '#d8ddf7', background: 'rgba(124,150,255,.1)', border: '1px solid rgba(145,167,255,.35)', borderRadius: 7, padding: '5px 8px', cursor: 'pointer', fontSize: 11 }
-const dangerButton: import('react').CSSProperties = { ...secondaryButton, color: '#ffd0c8', background: 'rgba(180,42,42,.22)', borderColor: 'rgba(255,100,80,.58)' }
-const dangerLink: import('react').CSSProperties = { marginTop: 7, color: '#e9a095', background: 'transparent', border: 0, padding: 0, cursor: 'pointer', fontSize: 10, textDecoration: 'underline', textUnderlineOffset: 2 }
-const confirmBox: import('react').CSSProperties = { display: 'flex', flexDirection: 'column', gap: 4, marginTop: 8, padding: 8, borderRadius: 8, color: '#ffd0c8', background: 'rgba(128,24,24,.24)', border: '1px solid rgba(255,120,90,.48)' }
+const secondaryButton: import('react').CSSProperties = { minWidth: 0, overflowWrap: 'anywhere', flex: '1 1 100px', color: 'var(--tp-text)', background: 'var(--tp-accent-soft)', border: '1px solid var(--tp-border-strong)', borderRadius: 7, padding: '5px 8px', cursor: 'pointer', fontSize: 11 }
+const dangerButton: import('react').CSSProperties = { ...secondaryButton, color: 'var(--tp-danger-2)', background: 'var(--tp-danger-bg)', borderColor: 'var(--tp-danger-border)' }
+const dangerLink: import('react').CSSProperties = { marginTop: 7, color: 'var(--tp-danger-2)', background: 'transparent', border: 0, padding: 0, cursor: 'pointer', fontSize: 10, textDecoration: 'underline', textUnderlineOffset: 2 }
+const confirmBox: import('react').CSSProperties = { display: 'flex', flexDirection: 'column', gap: 4, marginTop: 8, padding: 8, borderRadius: 8, color: 'var(--tp-danger-2)', background: 'var(--tp-danger-bg)', border: '1px solid var(--tp-danger-border)' }

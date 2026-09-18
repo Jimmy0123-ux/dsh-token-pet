@@ -7,13 +7,13 @@ import { promptMessages, promptErrorMessage, PromptEnhancementError } from './pr
 
 /** Visible opt-in enhancement UI. The composer owns actual apply/send semantics. */
 type PromptPanelAction = EnhancementAction | 'prompt-enhancing' | 'prompt-ready' | 'send'
-const promptCard = { marginTop: 12, padding: 12, border: '1px solid rgba(145,167,255,.28)', borderRadius: 12, background: 'linear-gradient(145deg, rgba(31,35,55,.97), rgba(22,24,36,.98))', boxShadow: '0 10px 26px rgba(0,0,0,.28)', color: '#e8eaf2' }
+const promptCard = { marginTop: 12, padding: 12, border: '1px solid var(--tp-border-strong)', borderRadius: 12, background: 'var(--tp-panel-bg)', boxShadow: 'var(--tp-shadow)', color: 'var(--tp-text)' }
 const promptHeader = { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 8 }
-const promptTitle = { color: '#e8eaf2', fontSize: 12, fontWeight: 600, letterSpacing: '.01em' }
-const promptHint = { color: '#9aa0b5', fontSize: 10 }
-const editorStyle = { width: '100%', boxSizing: 'border-box' as const, resize: 'vertical' as const, display: 'block', padding: '8px 9px', borderRadius: 8, border: '1px solid rgba(145,167,255,.28)', background: 'rgba(12,15,27,.62)', color: '#eef1ff', caretColor: '#91a7ff', fontFamily: 'inherit', fontSize: 12, lineHeight: 1.5, outline: 'none' }
-const secondaryButton = { color: '#d8ddf7', background: 'rgba(124,150,255,.1)', border: '1px solid rgba(145,167,255,.38)', borderRadius: 7, padding: '5px 9px', fontSize: 11, cursor: 'pointer', transition: 'background .15s ease, border-color .15s ease' }
-const primaryButton = { ...secondaryButton, color: '#fff', background: 'linear-gradient(135deg, #627cff, #8069d9)', borderColor: 'rgba(180,190,255,.72)', fontWeight: 600 }
+const promptTitle = { color: 'var(--tp-text)', fontSize: 12, fontWeight: 600, letterSpacing: '.01em' }
+const promptHint = { color: 'var(--tp-text-2)', fontSize: 10 }
+const editorStyle = { width: '100%', boxSizing: 'border-box' as const, resize: 'vertical' as const, display: 'block', padding: '8px 9px', borderRadius: 8, border: '1px solid var(--tp-border-strong)', background: 'var(--tp-card-bg)', color: 'var(--tp-text)', caretColor: 'var(--tp-accent)', fontFamily: 'inherit', fontSize: 12, lineHeight: 1.5, outline: 'none' }
+const secondaryButton = { color: 'var(--tp-text)', background: 'var(--tp-accent-soft)', border: '1px solid var(--tp-border-strong)', borderRadius: 7, padding: '5px 9px', fontSize: 11, cursor: 'pointer', transition: 'background .15s ease, border-color .15s ease' }
+const primaryButton = { ...secondaryButton, color: 'var(--tp-on-accent)', background: 'linear-gradient(135deg, #627cff, #8069d9)', borderColor: 'var(--tp-border-strong)', fontWeight: 600 }
 export function PromptEnhancerPanel(p: {
   language?: Language
   initial?: string
@@ -194,14 +194,14 @@ export function PromptEnhancerPanel(p: {
       'aria-label': t('original'), style: editorStyle,
       disabled: sent || busy || sending,
     }),
-    h('div', { key: 'privacy', style: { marginTop: 6, color: '#9aa0b5', fontSize: 10, lineHeight: 1.45 } }, [
+    h('div', { key: 'privacy', style: { marginTop: 6, color: 'var(--tp-text-2)', fontSize: 10, lineHeight: 1.45 } }, [
       t('privacy'),
       !enhancementEnabled ? h('button', { key: 'enable', ...button(), onClick: () => { saveSettings({ enhancementEnabled: true }) }, style: { ...secondaryButton, marginLeft: 6 } }, t('enable')) : null,
     ]),
     preview !== null ? h('textarea', {
       key: 'preview', ref: previewRef, value: preview, onChange: (e: { target: { value: string } }) => { setPreview(e.target.value); setEnhancedApplied(false); setCopied(false) },
       'aria-label': t('preview'), rows: 5, disabled: sent || sending || busy,
-      style: { ...editorStyle, marginTop: 8, borderColor: 'rgba(124,150,255,.48)', background: 'rgba(31,35,55,.72)' },
+      style: { ...editorStyle, marginTop: 8, borderColor: 'var(--tp-border-strong)', background: 'var(--tp-card-bg)' },
     }) : null,
     h('div', { key: 'buttons', style: { display: 'flex', gap: 5, marginTop: 5, flexWrap: 'wrap' } }, [
       h('button', { key: 'enhance', ...button(true), onClick: run, disabled: !enhancementEnabled || busy || sending || sent || !original.trim() }, t(busy ? 'busy' : 'title')),
@@ -213,7 +213,7 @@ export function PromptEnhancerPanel(p: {
       preview !== null ? h('button', { key: 'send', ...button(true), onClick: () => void send(), disabled: busy || sending || sent || !p.onSend || !preview.trim() }, t(sending ? 'sending' : 'send')) : null,
     ]),
     copied ? h('div', { key: 'copied', role: 'status' }, t('copied')) : null,
-    sent ? h('div', { key: 'sent', role: 'status', style: { marginTop: 5, color: '#9fe3b1' } }, t('sentDetail')) : null,
-    error !== null ? h('div', { key: 'error', role: 'alert', style: { color: '#ffb4a8', marginTop: 5 } }, promptErrorMessage(error, language)) : null,
+    sent ? h('div', { key: 'sent', role: 'status', style: { marginTop: 5, color: 'var(--tp-success)' } }, t('sentDetail')) : null,
+    error !== null ? h('div', { key: 'error', role: 'alert', style: { color: 'var(--tp-danger)', marginTop: 5 } }, promptErrorMessage(error, language)) : null,
   ])
 }

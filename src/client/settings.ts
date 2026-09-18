@@ -1,6 +1,7 @@
 /** Persistent token-pet preferences. Safe in SSR/headless environments. */
 import type { SoundTheme } from './completion-sound.ts'
 import { DEFAULT_PRICE_TABLE_JSON, isCostCurrency, parsePriceTable, type CostCurrency } from './cost.ts'
+import { isPetTheme, DEFAULT_PET_THEME, type PetTheme } from './theme.ts'
 
 export interface TokenPetSettings {
   size: number
@@ -30,6 +31,8 @@ export interface TokenPetSettings {
   budgetEnabled: boolean
   /** Monthly budget in USD (compared against the estimated monthly cost). */
   budgetMonthly: number
+  /** Interface theme: dark (default) or light. */
+  theme: PetTheme
 }
 
 export const DEFAULT_SETTINGS: TokenPetSettings = {
@@ -38,6 +41,7 @@ export const DEFAULT_SETTINGS: TokenPetSettings = {
   enhancementEnabled: true,
   enhancementTemplate: '请优化以下提示词，保留原意并提升清晰度：\n\n{{prompt}}', enhancementModel: '', skinId: 'default',
   priceTable: DEFAULT_PRICE_TABLE_JSON, currency: 'USD', costEnabled: true, budgetEnabled: false, budgetMonthly: 10,
+  theme: DEFAULT_PET_THEME,
 }
 export const DEFAULT_ENHANCEMENT_TEMPLATES = {
   zh: DEFAULT_SETTINGS.enhancementTemplate,
@@ -90,6 +94,7 @@ export function normalizeSettings(raw: unknown): TokenPetSettings {
     costEnabled: typeof r.costEnabled === 'boolean' ? r.costEnabled : DEFAULT_SETTINGS.costEnabled,
     budgetEnabled: typeof r.budgetEnabled === 'boolean' ? r.budgetEnabled : DEFAULT_SETTINGS.budgetEnabled,
     budgetMonthly: clamp(r.budgetMonthly, 0, 100000, DEFAULT_SETTINGS.budgetMonthly),
+    theme: isPetTheme(r.theme) ? r.theme : DEFAULT_PET_THEME,
   }
 }
 export function loadSettings(): TokenPetSettings {

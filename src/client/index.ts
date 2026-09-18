@@ -53,6 +53,7 @@ import { clampFloatingOffset, loadSettings, saveSettings, SETTINGS_EVENT, type F
 import { createComposerPromptBridge } from './prompt.ts'
 import { TokenPetSettingsPanel } from './settings-panel.tsx'
 import { builtinSkinIndex, resolveStyleOverride, type SkinManifest } from './skin.ts'
+import { themeVars } from './theme.ts'
 import { injectSpriteSheetCss } from './sprite-player.tsx'
 import { clearLifetimeLedgerAndReload } from './lifetime-ledger.ts'
 import { canLoadTodayUsageTrend, fitPanelSizeToViewport, FLOATING_LAYER, proportionalPanelSize } from './layout.ts'
@@ -888,7 +889,7 @@ function TokenPetWindow() {
   const petNode = createPortal(
     h('div', {
       ref: petDrag.ref,
-      style: css({ ...petFixed, width: settings.size + 128, height: Math.round(settings.size * 1.46) + 42, maxWidth: 'calc(100vw - 16px)', maxHeight: 'calc(100vh - 16px)', transform: `translate(${petDrag.offset.x}px, ${petDrag.offset.y}px)` }),
+      style: css({ ...petFixed, ...themeVars(settings.theme), width: settings.size + 128, height: Math.round(settings.size * 1.46) + 42, maxWidth: 'calc(100vw - 16px)', maxHeight: 'calc(100vh - 16px)', transform: `translate(${petDrag.offset.x}px, ${petDrag.offset.y}px)` }),
       onPointerDown: petDrag.onPointerDown,
       onClick: () => { if (petDrag.consumeClick()) { animation.publish({ action: 'click', dedupeKey: 'pet-click', interrupt: true }); setPanelOpen((v) => !v) } },
       title: panelOpen ? t('hideStats') : t('showStats'),
@@ -925,7 +926,7 @@ function TokenPetWindow() {
   const narrowDrawer = viewport.width < 720 || visibleWidth < 460
   const compactHeader = visibleWidth < 440
   const panelNode = panelOpen ? createPortal(
-    h('div', { ref: panelDrag.ref, style: css({ ...panelFixed, width: visibleWidth, height: 'auto', maxHeight: visibleHeight, maxWidth: 'calc(100vw - 16px)', overflow: 'hidden', transform: `translate(${panelDrag.offset.x}px, ${panelDrag.offset.y}px)` }) }, [
+    h('div', { ref: panelDrag.ref, style: css({ ...panelFixed, ...themeVars(settings.theme), width: visibleWidth, height: 'auto', maxHeight: visibleHeight, maxWidth: 'calc(100vw - 16px)', overflow: 'hidden', transform: `translate(${panelDrag.offset.x}px, ${panelDrag.offset.y}px)` }) }, [
       h('div', { style: css(dragHandle), onPointerDown: panelDrag.onPointerDown }, [
         h('span', { style: css(dragTitle), title: t('pet') }, t('pet')),
         h('div', { style: css(actionBar) }, [
@@ -1138,16 +1139,16 @@ const dragHandle: CSSProperties = {
   borderRadius: '14px 14px 0 0',
   height: 42,
   minHeight: 42,
-  border: '1px solid rgba(128,128,160,0.28)',
-  background: 'rgba(24,26,38,0.96)',
-  boxShadow: '0 8px 22px rgba(0,0,0,0.3)',
+  border: '1px solid var(--tp-border-2)',
+  background: 'var(--tp-solid)',
+  boxShadow: 'var(--tp-shadow-2)',
   flexShrink: 0,
   width: '100%',
   boxSizing: 'border-box',
 }
 
 const dragTitle: CSSProperties = {
-  color: '#e4e9fa',
+  color: 'var(--tp-text)',
   fontSize: 13,
   fontWeight: 700,
   minWidth: 0,
@@ -1166,9 +1167,9 @@ const resizeGrip: CSSProperties = {
   alignItems: 'center',
   justifyContent: 'center',
   cursor: 'nwse-resize',
-  background: 'rgba(255,209,102,0.18)',
-  color: '#ffd166',
-  border: '1px solid rgba(255,209,102,0.9)',
+  background: 'color-mix(in srgb, var(--tp-gold) 18%, transparent)',
+  color: 'var(--tp-gold)',
+  border: '1px solid color-mix(in srgb, var(--tp-gold) 90%, transparent)',
   borderRadius: 7,
   fontSize: 21,
   fontWeight: 700,
@@ -1179,21 +1180,21 @@ const resizeGrip: CSSProperties = {
 const stageChip: CSSProperties = {
   alignSelf: 'center',
   textAlign: 'center',
-  color: '#e8eaf2',
-  background: 'rgba(24,26,38,0.92)',
-  border: '1px solid rgba(128,128,160,0.28)',
+  color: 'var(--tp-text)',
+  background: 'var(--tp-solid)',
+  border: '1px solid var(--tp-border-2)',
   padding: '2px 8px',
   borderRadius: 999,
   fontSize: 11,
   whiteSpace: 'nowrap',
-  boxShadow: '0 6px 18px rgba(0,0,0,0.3)',
+  boxShadow: 'var(--tp-shadow-2)',
 }
 
 const actionBar: CSSProperties = { display: 'flex', alignItems: 'center', gap: 5, minWidth: 0, flexShrink: 0 }
 const actionBtn: CSSProperties = {
-  color: '#9aa0b5',
-  background: 'rgba(24,26,38,0.9)',
-  border: '1px solid rgba(128,128,160,0.28)',
+  color: 'var(--tp-text-2)',
+  background: 'var(--tp-solid)',
+  border: '1px solid var(--tp-border-2)',
   borderRadius: 8,
   padding: '3px 8px',
   minWidth: 30,
@@ -1201,14 +1202,14 @@ const actionBtn: CSSProperties = {
   boxSizing: 'border-box',
   fontSize: 11,
   cursor: 'pointer',
-  boxShadow: '0 6px 18px rgba(0,0,0,0.3)',
+  boxShadow: 'var(--tp-shadow-2)',
   whiteSpace: 'nowrap',
 }
-const enhanceActionBtn: CSSProperties = { color: '#f0e8ff', background: 'linear-gradient(135deg,rgba(98,124,255,.8),rgba(128,105,217,.8))', borderColor: 'rgba(196,167,255,.72)', fontWeight: 700 }
-const enhanceActionBtnOpen: CSSProperties = { color: '#fff', boxShadow: '0 0 0 2px rgba(196,167,255,.2),0 6px 18px rgba(0,0,0,.3)' }
-const promptDrawer: CSSProperties = { position: 'absolute', zIndex: 6, boxSizing: 'border-box', background: 'linear-gradient(145deg,rgba(31,35,55,.995),rgba(18,20,31,.995))', border: '1px solid rgba(196,167,255,.42)', boxShadow: '-12px 0 30px rgba(0,0,0,.4)', transition: 'transform .2s ease,opacity .2s ease,visibility .2s ease', opacity: 0, visibility: 'hidden', pointerEvents: 'none', overflow: 'hidden' }
+const enhanceActionBtn: CSSProperties = { color: 'var(--tp-on-accent)', background: 'linear-gradient(135deg,rgba(98,124,255,.85),rgba(128,105,217,.85))', borderColor: 'var(--tp-border-strong)', fontWeight: 700 }
+const enhanceActionBtnOpen: CSSProperties = { color: 'var(--tp-on-accent)', boxShadow: '0 0 0 2px var(--tp-border-strong),var(--tp-shadow-2)' }
+const promptDrawer: CSSProperties = { position: 'absolute', zIndex: 6, boxSizing: 'border-box', background: 'var(--tp-panel-bg)', border: '1px solid var(--tp-border-strong)', boxShadow: '-12px 0 30px var(--tp-shadow)', transition: 'transform .2s ease,opacity .2s ease,visibility .2s ease', opacity: 0, visibility: 'hidden', pointerEvents: 'none', overflow: 'hidden' }
 const promptDrawerRight: CSSProperties = { top: 42, right: 0, bottom: 0, width: 'min(82%, 460px)', borderRadius: '14px 0 14px 14px' }
-const promptDrawerBottom: CSSProperties = { left: 0, right: 0, bottom: 0, maxHeight: '74%', borderRadius: '14px 14px 0 0', boxShadow: '0 -12px 30px rgba(0,0,0,.4)' }
+const promptDrawerBottom: CSSProperties = { left: 0, right: 0, bottom: 0, maxHeight: '74%', borderRadius: '14px 14px 0 0', boxShadow: '0 -12px 30px var(--tp-shadow)' }
 const promptDrawerVisible: CSSProperties = { transform: 'translate(0,0)', opacity: 1, visibility: 'visible', pointerEvents: 'auto' }
 const promptDrawerRightHidden: CSSProperties = { transform: 'translateX(104%)' }
 const promptDrawerBottomHidden: CSSProperties = { transform: 'translateY(104%)' }

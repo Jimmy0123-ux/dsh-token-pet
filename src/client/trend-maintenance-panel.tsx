@@ -99,7 +99,7 @@ export function TrendIndexMaintenancePanel({ language: explicitLanguage }: { lan
   }, [load])
 
   const running = status?.running === true
-  return h('fieldset', { style: { minWidth: 0, overflowWrap: 'anywhere', margin: '6px 0', padding: 8, border: '1px solid rgba(128,128,160,.28)', borderRadius: 8 } }, [
+  return h('fieldset', { style: { minWidth: 0, overflowWrap: 'anywhere', margin: '6px 0', padding: 8, border: '1px solid var(--tp-border-2)', borderRadius: 8 } }, [
     h('legend', { key: 'legend', style: { padding: '0 4px', fontWeight: 700 } }, maintenanceText(language, 'title')),
     h('div', { key: 'health' }, maintenanceText(language, 'health', { value: trendHealthLabel(status, language) })),
     h('div', { key: 'updated' }, maintenanceText(language, 'updated', { value: updatedLabel(status?.updatedAt ?? null, language) })),
@@ -109,13 +109,13 @@ export function TrendIndexMaintenancePanel({ language: explicitLanguage }: { lan
     h('div', { key: 'actions', style: { display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 8 } }, [
       h('button', {
         key: 'rebuild', type: 'button', disabled: requesting || running, onClick: () => { void rebuild() },
-        style: { color: 'inherit', maxWidth: '100%', whiteSpace: 'normal', padding: '5px 9px', borderRadius: 7, border: '1px solid rgba(210,128,64,.55)', background: 'rgba(210,128,64,.12)', cursor: requesting || running ? 'not-allowed' : 'pointer' },
+        style: { color: 'inherit', maxWidth: '100%', whiteSpace: 'normal', padding: '5px 9px', borderRadius: 7, border: '1px solid var(--tp-warn-border)', background: 'var(--tp-warn-bg)', cursor: requesting || running ? 'not-allowed' : 'pointer' },
       }, maintenanceText(language, 'rebuildAction')),
       status?.cancelSupported ? h('button', {
         key: 'cancel', type: 'button', disabled: requesting, onClick: () => { void cancel() },
-        style: { color: 'inherit', maxWidth: '100%', whiteSpace: 'normal', padding: '5px 9px', borderRadius: 7, border: '1px solid rgba(128,128,160,.36)', background: 'rgba(128,128,160,.12)' },
+        style: { color: 'inherit', maxWidth: '100%', whiteSpace: 'normal', padding: '5px 9px', borderRadius: 7, border: '1px solid var(--tp-border-2)', background: 'var(--tp-accent-soft)' },
       }, maintenanceText(language, 'cancelAction')) : null,
-      h('button', { key: 'refresh', type: 'button', disabled: requesting, onClick: () => { void load() }, style: { color: 'inherit', maxWidth: '100%', whiteSpace: 'normal', padding: '5px 9px', borderRadius: 7, border: '1px solid rgba(128,128,160,.36)', background: 'rgba(128,128,160,.12)' } }, maintenanceText(language, 'refreshAction')),
+      h('button', { key: 'refresh', type: 'button', disabled: requesting, onClick: () => { void load() }, style: { color: 'inherit', maxWidth: '100%', whiteSpace: 'normal', padding: '5px 9px', borderRadius: 7, border: '1px solid var(--tp-border-2)', background: 'var(--tp-accent-soft)' } }, maintenanceText(language, 'refreshAction')),
     ]),
     feedback ? h('div', { key: 'feedback', role: feedback.level === 'error' ? 'alert' : 'status', style: { marginTop: 6, fontSize: 12 } }, maintenanceFeedbackText(language, feedback)) : null,
   ])

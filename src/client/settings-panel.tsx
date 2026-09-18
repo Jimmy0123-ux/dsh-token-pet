@@ -8,12 +8,13 @@ import { SkinImportPanel } from './skin-panel.tsx'
 import { PET_PREVIEW_EVENT, type PetAction } from './events.ts'
 import { TrendIndexMaintenancePanel } from './trend-maintenance-panel.tsx'
 import { DEFAULT_PRICE_TABLE_JSON, draftRowsToJson, isNonNegativeString, priceRowsFromJson, type PriceDraftRow } from './cost.ts'
+import { themeVars, type PetTheme } from './theme.ts'
 import { exportLedgerCsv, exportLedgerJson } from './export-data.ts'
 
 const fieldStyle = { display: 'grid', gap: 5, minWidth: 0 }
-const inputStyle = { margin: 0, width: '100%', minWidth: 0, maxWidth: '100%', boxSizing: 'border-box' as const, color: 'inherit', background: 'rgba(128,128,160,.08)', border: '1px solid rgba(128,128,160,.35)', borderRadius: 6, padding: 7, font: 'inherit' }
-const buttonStyle = { padding: '6px 9px', borderRadius: 7, border: '1px solid rgba(128,128,160,.36)', background: 'rgba(128,128,160,.12)', color: 'inherit', cursor: 'pointer', maxWidth: '100%', whiteSpace: 'normal' as const, overflowWrap: 'anywhere' as const }
-const removeButtonStyle = { flex: '0 0 auto', width: 26, height: 26, padding: 0, borderRadius: 7, border: '1px solid rgba(255,100,80,.5)', background: 'rgba(180,42,42,.2)', color: '#ffc4ba', cursor: 'pointer', fontSize: 12, lineHeight: 1 }
+const inputStyle = { margin: 0, width: '100%', minWidth: 0, maxWidth: '100%', boxSizing: 'border-box' as const, color: 'inherit', background: 'var(--tp-input-bg)', border: '1px solid var(--tp-border-2)', borderRadius: 6, padding: 7, font: 'inherit' }
+const buttonStyle = { padding: '6px 9px', borderRadius: 7, border: '1px solid var(--tp-border-2)', background: 'var(--tp-accent-soft)', color: 'inherit', cursor: 'pointer', maxWidth: '100%', whiteSpace: 'normal' as const, overflowWrap: 'anywhere' as const }
+const removeButtonStyle = { flex: '0 0 auto', width: 26, height: 26, padding: 0, borderRadius: 7, border: '1px solid var(--tp-danger-border)', background: 'var(--tp-danger-bg)', color: 'var(--tp-danger-2)', cursor: 'pointer', fontSize: 12, lineHeight: 1 }
 
 /** Visual, no-JSON price editor: model key + four rate inputs per row. */
 function PriceTableEditor(p: { language: Language; value: string; onSave: (json: string) => void; onReset: () => void }) {
@@ -55,7 +56,7 @@ function PriceTableEditor(p: { language: Language; value: string; onSave: (json:
     onChange: (e: { target: { value: string } }) => update(row.id, { [key]: e.target.value }),
   })
   return h('div', { key: 'editor', style: { display: 'grid', gap: 6, minWidth: 0 } }, [
-    ...rows.map((row) => h('div', { key: row.id, style: { display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center', minWidth: 0, padding: 6, borderRadius: 8, background: 'rgba(128,128,160,.06)' } }, [
+    ...rows.map((row) => h('div', { key: row.id, style: { display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center', minWidth: 0, padding: 6, borderRadius: 8, background: 'var(--tp-hover-row)' } }, [
       h('input', { key: 'key', type: 'text', placeholder: t('priceKeyPlaceholder'), 'aria-label': t('priceColModel'), title: t('priceColModel'), spellCheck: false, value: row.key, style: { ...inputStyle, flex: '1 1 100%', minWidth: 0, fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace', fontSize: 11 }, onChange: (e: { target: { value: string } }) => update(row.id, { key: e.target.value }) }),
       numeric(row, 'input', t('priceColInput')),
       numeric(row, 'output', t('priceColOutput')),
@@ -65,11 +66,11 @@ function PriceTableEditor(p: { language: Language; value: string; onSave: (json:
     ])),
     h('div', { key: 'actions', style: { display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center' } }, [
       h('button', { key: 'add', type: 'button', style: buttonStyle, onClick: add }, t('addPriceRow')),
-      h('button', { key: 'save', type: 'button', style: { ...buttonStyle, borderColor: 'rgba(145,167,255,.55)', background: 'rgba(124,150,255,.16)' }, onClick: save }, t('savePrices')),
+      h('button', { key: 'save', type: 'button', style: { ...buttonStyle, borderColor: 'var(--tp-border-strong)', background: 'var(--tp-accent-soft-2)' }, onClick: save }, t('savePrices')),
       h('button', { key: 'reset', type: 'button', style: buttonStyle, onClick: reset }, t('resetPrices')),
     ]),
     status === 'saved' ? h('div', { key: 'status', role: 'status' }, t('pricesSaved'))
-      : status === 'invalid' ? h('div', { key: 'status', role: 'alert', style: { color: '#ffb4a8' } }, t('invalidPriceRows', { count: invalidCount })) : null,
+      : status === 'invalid' ? h('div', { key: 'status', role: 'alert', style: { color: 'var(--tp-danger)' } }, t('invalidPriceRows', { count: invalidCount })) : null,
   ])
 }
 /** Both settings entry points subscribe to the same persisted preferences. */
@@ -122,11 +123,13 @@ export function TokenPetSettingsPanel(p: { language?: Language }) {
     if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent(PET_PREVIEW_EVENT, { detail: { action } }))
   }
   const previews = ['working', 'eating', 'digesting', 'tool-success', 'tool-failure', 'warning', 'evolve', 'click', 'prompt-enhancing', 'prompt-ready'] as const
-  const card = (key: 'appearance' | 'notifications' | 'budget' | 'enhancement' | 'advanced', children: ReactNode[]) => h('fieldset', { key, style: { display: 'grid', gap: 12, minWidth: 0, margin: 0, padding: 12, border: '1px solid rgba(128,128,160,.28)', borderRadius: 12, background: 'rgba(128,128,160,.04)' } }, [h('legend', { key: 'legend', style: { padding: '0 5px', fontWeight: 700 } }, t(key)), ...children])
+  const card = (key: 'appearance' | 'notifications' | 'budget' | 'enhancement' | 'advanced', children: ReactNode[]) => h('fieldset', { key, style: { display: 'grid', gap: 12, minWidth: 0, margin: 0, padding: 12, border: '1px solid var(--tp-border-2)', borderRadius: 12, background: 'var(--tp-accent-soft)' } }, [h('legend', { key: 'legend', style: { padding: '0 5px', fontWeight: 700 } }, t(key)), ...children])
   const number = (key: 'size' | 'panelWidth' | 'panelHeight' | 'animationSpeed', label: 'size' | 'panelWidth' | 'panelHeight' | 'speed', min: number, max: number) => h('label', { key, style: fieldStyle }, [t(label), h('input', { key: 'input', style: inputStyle, type: key === 'animationSpeed' ? 'range' : 'number', min, max, step: key === 'animationSpeed' ? .1 : 1, value: s[key], onChange: (e: { target: { value: string } }) => patch({ [key]: Number(e.target.value) }) })])
   const checkbox = (key: 'lowPerformance' | 'enhancementEnabled', label: 'performance' | 'enabled') => h('label', { key, style: { display: 'flex', alignItems: 'start', gap: 7, minWidth: 0 } }, [h('input', { key: 'input', type: 'checkbox', checked: s[key], onChange: (e: { target: { checked: boolean } }) => patch({ [key]: e.target.checked }) }), t(label)])
-  return h('section', { 'aria-label': t('title'), style: { display: 'grid', gap: 12, padding: 8, minWidth: 0, overflowWrap: 'anywhere' } }, [
-    card('appearance', [number('size', 'size', 64, 320), number('panelWidth', 'panelWidth', 360, 1200), number('panelHeight', 'panelHeight', 420, 1400), number('animationSpeed', 'speed', 0, 3), checkbox('lowPerformance', 'performance'), h(SkinImportPanel, { key: 'skins', language: s.language })]),
+  return h('section', { 'aria-label': t('title'), style: { display: 'grid', gap: 12, padding: 8, minWidth: 0, overflowWrap: 'anywhere', ...themeVars(s.theme) } }, [
+    card('appearance', [number('size', 'size', 64, 320), number('panelWidth', 'panelWidth', 360, 1200), number('panelHeight', 'panelHeight', 420, 1400), number('animationSpeed', 'speed', 0, 3), checkbox('lowPerformance', 'performance'),
+      h('label', { key: 'theme', style: fieldStyle }, [t('theme'), h('select', { key: 'select', style: inputStyle, value: s.theme, onChange: (e: { target: { value: PetTheme } }) => patch({ theme: e.target.value }) }, [h('option', { key: 'dark', value: 'dark' }, t('themeDark')), h('option', { key: 'light', value: 'light' }, t('themeLight'))])]),
+      h(SkinImportPanel, { key: 'skins', language: s.language })]),
     card('notifications', [
       h('label', { key: 'language', style: fieldStyle }, [t('language'), h('select', { key: 'select', style: inputStyle, value: s.language, onChange: (e: { target: { value: Language } }) => patch({ language: e.target.value }) }, [h('option', { key: 'zh', value: 'zh' }, '中文'), h('option', { key: 'en', value: 'en' }, 'English')])]),
       h('label', { key: 'sound', style: { display: 'flex', gap: 7 } }, [h('input', { key: 'input', type: 'checkbox', checked: s.completionSound, onChange: (e: { target: { checked: boolean } }) => toggleSound(e.target.checked) }), t('sound')]),
