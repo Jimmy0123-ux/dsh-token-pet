@@ -40,7 +40,7 @@ export const DEFAULT_SETTINGS: TokenPetSettings = {
   lowPerformance: false, language: 'zh', completionSound: false, completionSoundTheme: 'chime', completionSoundVolume: 1,
   enhancementEnabled: true,
   enhancementTemplate: '请优化以下提示词，保留原意并提升清晰度：\n\n{{prompt}}', enhancementModel: '', skinId: 'default',
-  priceTable: DEFAULT_PRICE_TABLE_JSON, currency: 'USD', costEnabled: true, budgetEnabled: false, budgetMonthly: 10,
+  priceTable: DEFAULT_PRICE_TABLE_JSON, currency: 'USD', costEnabled: false, budgetEnabled: false, budgetMonthly: 10,
   theme: DEFAULT_PET_THEME,
 }
 export const DEFAULT_ENHANCEMENT_TEMPLATES = {

@@ -127,22 +127,23 @@ test('typed dictionary contains both locales without unresolved interpolation in
   }
 })
 
-test('cost surfaces are hidden when the cost display switch is off', () => {
+test('cost surfaces are hidden by default and appear only when the switch is on', () => {
   const key = 'dsh-token-pet.settings.v1'
   const oldStorage = globalThis.localStorage
-  const store = new Map([[key, JSON.stringify({ costEnabled: false })]])
+  const store = new Map([[key, JSON.stringify({})]])
   globalThis.localStorage = { getItem: (k) => store.get(k) ?? null, setItem: () => {}, removeItem: () => {} }
   try {
     const ready = { lifetimeStatus: 'ready', lifetimeLedger: ledger, indexProgress: { status: 'ready' }, trendStatus: 'ready' }
+    // Default settings: cost display is OFF.
     const overview = htmlFor('zh', ready)
-    assert.ok(!overview.includes('data-testid="cost-estimate"'), 'overview cost card must be hidden')
-    assert.ok(!visible(overview).includes(panelText('zh', 'cost')), 'cost heading hidden')
+    assert.ok(!overview.includes('data-testid="cost-estimate"'), 'overview cost card must be hidden by default')
+    assert.ok(!visible(overview).includes(panelText('zh', 'cost')), 'cost heading hidden by default')
     const models = htmlFor('zh', { ...ready, initialTab: 'models' })
-    assert.ok(!visible(models).includes(panelText('zh', 'modelCost')), 'per-model cost line hidden')
-    // Default (costEnabled true) still renders the cost card.
-    globalThis.localStorage.getItem = (k) => k === key ? null : null
+    assert.ok(!visible(models).includes(panelText('zh', 'modelCost')), 'per-model cost line hidden by default')
+    // Explicitly enabled renders the cost card.
+    store.set(key, JSON.stringify({ costEnabled: true }))
     const on = htmlFor('zh', ready)
-    assert.ok(on.includes('data-testid="cost-estimate"'), 'cost card visible by default')
+    assert.ok(on.includes('data-testid="cost-estimate"'), 'cost card visible when enabled')
   } finally {
     if (oldStorage === undefined) delete globalThis.localStorage
     else globalThis.localStorage = oldStorage
