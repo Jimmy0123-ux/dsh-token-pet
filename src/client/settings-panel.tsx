@@ -80,8 +80,10 @@ export function TokenPetSettingsPanel(p: { language?: Language }) {
       soundStatus ? h('div', { key: 'status', role: 'status' }, t(soundStatus)) : null,
     ]),
     card('budget', [
+      h('label', { key: 'costEnable', style: { display: 'flex', gap: 7 } }, [h('input', { key: 'input', type: 'checkbox', checked: s.costEnabled, onChange: (e: { target: { checked: boolean } }) => patch({ costEnabled: e.target.checked }) }), t('costEnable')]),
+      h('small', { key: 'costEnableHint', style: { opacity: .8, lineHeight: 1.5 } }, t('costEnableHint')),
       h('label', { key: 'currency', style: fieldStyle }, [t('currency'), h('select', { key: 'select', style: inputStyle, value: s.currency, onChange: (e: { target: { value: 'USD' | 'CNY' } }) => patch({ currency: e.target.value }) }, [h('option', { key: 'usd', value: 'USD' }, 'USD ($)'), h('option', { key: 'cny', value: 'CNY' }, 'CNY (¥)')])]),
-      h('label', { key: 'budgetEnable', style: { display: 'flex', gap: 7 } }, [h('input', { key: 'input', type: 'checkbox', checked: s.budgetEnabled, onChange: (e: { target: { checked: boolean } }) => patch({ budgetEnabled: e.target.checked }) }), t('budgetEnable')]),
+      h('label', { key: 'budgetEnable', style: { display: 'flex', gap: 7 } }, [h('input', { key: 'input', type: 'checkbox', checked: s.budgetEnabled && s.costEnabled, disabled: !s.costEnabled, onChange: (e: { target: { checked: boolean } }) => patch({ budgetEnabled: e.target.checked }) }), t('budgetEnable')]),
       h('label', { key: 'budgetMonthly', style: fieldStyle }, [t('budgetMonthly'), h('input', { key: 'input', style: inputStyle, type: 'number', min: 0, max: 100000, step: 1, value: s.budgetMonthly, onChange: (e: { target: { value: string } }) => patch({ budgetMonthly: Number(e.target.value) }) })]),
       h('small', { key: 'budgetHint', style: { opacity: .8, lineHeight: 1.5 } }, t('budgetHint')),
       h('label', { key: 'priceTable', style: fieldStyle }, [t('priceTable'), h('textarea', { key: 'input', rows: 8, spellCheck: false, style: { ...inputStyle, resize: 'vertical', fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace', fontSize: 11 }, value: s.priceTable, onChange: (e: { target: { value: string } }) => { setPriceReset(false); patch({ priceTable: e.target.value }) } })]),

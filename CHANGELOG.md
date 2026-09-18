@@ -4,6 +4,10 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [0.3.2] - 2026-09-18
 
+### Added
+
+- **成本估算显示开关**：设置 → 成本与预算 新增"显示成本估算"开关（默认开）。关闭后概览成本卡片、模型页成本列、Top5 成本列、会话排行成本列全部隐藏，月预算告警同步停用；对不关心价格的用户可一键回归纯用量界面。
+
 ### Fixed
 
 - **客户端皮肤 ZIP 导入现在真正内联 fflate 的浏览器入口**（重要，分两步修复）：

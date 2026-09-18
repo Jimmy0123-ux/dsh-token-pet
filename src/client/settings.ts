@@ -24,6 +24,8 @@ export interface TokenPetSettings {
   priceTable: string
   /** Display currency for cost estimates. */
   currency: CostCurrency
+  /** Whether any cost estimate UI is shown (off for users who don't care). */
+  costEnabled: boolean
   /** Opt-in monthly budget alert. */
   budgetEnabled: boolean
   /** Monthly budget in USD (compared against the estimated monthly cost). */
@@ -35,7 +37,7 @@ export const DEFAULT_SETTINGS: TokenPetSettings = {
   lowPerformance: false, language: 'zh', completionSound: false, completionSoundTheme: 'chime', completionSoundVolume: 1,
   enhancementEnabled: true,
   enhancementTemplate: '请优化以下提示词，保留原意并提升清晰度：\n\n{{prompt}}', enhancementModel: '', skinId: 'default',
-  priceTable: DEFAULT_PRICE_TABLE_JSON, currency: 'USD', budgetEnabled: false, budgetMonthly: 10,
+  priceTable: DEFAULT_PRICE_TABLE_JSON, currency: 'USD', costEnabled: true, budgetEnabled: false, budgetMonthly: 10,
 }
 export const DEFAULT_ENHANCEMENT_TEMPLATES = {
   zh: DEFAULT_SETTINGS.enhancementTemplate,
@@ -85,6 +87,7 @@ export function normalizeSettings(raw: unknown): TokenPetSettings {
      skinId: typeof r.skinId === 'string' && /^[a-z0-9][a-z0-9._-]*$/i.test(r.skinId) ? r.skinId : 'default',
     priceTable: typeof r.priceTable === 'string' && parsePriceTable(r.priceTable) ? r.priceTable : DEFAULT_PRICE_TABLE_JSON,
     currency: isCostCurrency(r.currency) ? r.currency : DEFAULT_SETTINGS.currency,
+    costEnabled: typeof r.costEnabled === 'boolean' ? r.costEnabled : DEFAULT_SETTINGS.costEnabled,
     budgetEnabled: typeof r.budgetEnabled === 'boolean' ? r.budgetEnabled : DEFAULT_SETTINGS.budgetEnabled,
     budgetMonthly: clamp(r.budgetMonthly, 0, 100000, DEFAULT_SETTINGS.budgetMonthly),
   }

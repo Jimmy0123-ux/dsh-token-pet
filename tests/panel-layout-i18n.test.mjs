@@ -125,3 +125,25 @@ test('typed dictionary contains both locales without unresolved interpolation in
     assert.ok(value.zh.length && value.en.length)
   }
 })
+
+test('cost surfaces are hidden when the cost display switch is off', () => {
+  const key = 'dsh-token-pet.settings.v1'
+  const oldStorage = globalThis.localStorage
+  const store = new Map([[key, JSON.stringify({ costEnabled: false })]])
+  globalThis.localStorage = { getItem: (k) => store.get(k) ?? null, setItem: () => {}, removeItem: () => {} }
+  try {
+    const ready = { lifetimeStatus: 'ready', lifetimeLedger: ledger, indexProgress: { status: 'ready' }, trendStatus: 'ready' }
+    const overview = htmlFor('zh', ready)
+    assert.ok(!overview.includes('data-testid="cost-estimate"'), 'overview cost card must be hidden')
+    assert.ok(!visible(overview).includes(panelText('zh', 'cost')), 'cost heading hidden')
+    const models = htmlFor('zh', { ...ready, initialTab: 'models' })
+    assert.ok(!visible(models).includes(panelText('zh', 'modelCost')), 'per-model cost line hidden')
+    // Default (costEnabled true) still renders the cost card.
+    globalThis.localStorage.getItem = (k) => k === key ? null : null
+    const on = htmlFor('zh', ready)
+    assert.ok(on.includes('data-testid="cost-estimate"'), 'cost card visible by default')
+  } finally {
+    if (oldStorage === undefined) delete globalThis.localStorage
+    else globalThis.localStorage = oldStorage
+  }
+})

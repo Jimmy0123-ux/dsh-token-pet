@@ -215,7 +215,10 @@ export function ContextPanel(p: PanelProps) {
   const monthlyCost = monthlyCostOfCells(ledger?.byModelDay ?? [], priceTable)
   const modelCosts = useMemo(() => costPerModel(ledger?.byModelDay ?? [], priceTable), [ledger, priceTable])
   const costByKey = useMemo(() => new Map(modelCosts.map((row) => [`${row.provider}\u0000${row.model}`, row.cost])), [modelCosts])
-  const overBudget = preferences.budgetEnabled && monthlyCost >= Math.max(0, preferences.budgetMonthly)
+  // Users who don't care about money can hide every cost surface; the budget
+  // alert is also suppressed when cost display is off.
+  const showCost = preferences.costEnabled === true
+  const overBudget = showCost && preferences.budgetEnabled && monthlyCost >= Math.max(0, preferences.budgetMonthly)
   const budgetPercent = preferences.budgetMonthly > 0 ? Math.min(100, (monthlyCost / preferences.budgetMonthly) * 100) : 0
   const [trendRange, setTrendRange] = useState<'today' | '7d' | '30d'>('today')
   const trendData = trendRange === 'today' ? p.trend : dayTrendBuckets(ledger?.byModelDay, trendRange === '7d' ? 7 : 30)
@@ -288,7 +291,7 @@ export function ContextPanel(p: PanelProps) {
       confirmLifetimeClear ? h(LifetimeClearConfirmation, { key: 'confirm', language, busy: p.busy || clearStatus === 'clearing', onCancel: () => setConfirmLifetimeClear(false), onConfirm: confirmClearLifetime })
         : h('button', { key: 'clear', onClick: () => { setClearStatus('idle'); setConfirmLifetimeClear(true) }, disabled: p.busy || !ledger || !p.onClearLifetime, style: css(dangerLink) }, t('clear')),
     ]),
-    h('section', { key: 'cost', style: css(heroCard), 'data-testid': 'cost-estimate' }, [
+    ...(showCost ? [h('section', { key: 'cost', style: css(heroCard), 'data-testid': 'cost-estimate' }, [
       h('div', { key: 'eyebrow', style: css(eyebrow) }, t('cost')),
       h('div', { key: 'heading', style: css(sectionHeading) }, [
         h('strong', { key: 'title' }, t('cost')),
@@ -304,15 +307,15 @@ export function ContextPanel(p: PanelProps) {
       ]) : null,
       preferences.budgetEnabled ? h('div', { key: 'bar', style: css(budgetBar), role: 'meter', 'aria-valuenow': Math.round(budgetPercent), 'aria-valuemin': 0, 'aria-valuemax': 100 }, h('span', { key: 'fill', style: css({ display: 'block', width: `${budgetPercent}%`, height: '100%', borderRadius: 999, background: overBudget ? '#d98282' : '#91a7ff' }) })) : null,
       h('div', { key: 'note', style: css(note) }, t('budgetNote')),
-    ]),
+    ])] : []),
     h('div', { key: 'insights', style: css(panelContentGrid()) }, [
     h('section', { key: 'top', style: css(card) }, [
       h('div', { key: 'heading', style: css(sectionHeading) }, [h('strong', { key: 'title' }, t('topModels')), h('span', { key: 'scope', style: css(subtle) }, t('lifetime'))]),
-      modelRows.length ? h('div', { key: 'list', style: css(list) }, modelRows.slice(0, 5).map((item, index) => h('div', { key: `${item.provider}|${item.model}`, style: css(modelRow) }, [
+      modelRows.length ? h('div', { key: 'list', style: css(list) }, modelRows.slice(0, 5).map((item, index) => h('div', { key: `${item.provider}|${item.model}`, style: css({ ...modelRow, ...(showCost ? {} : { gridTemplateColumns: '24px minmax(0,1fr) auto' }) }) }, [
         h('span', { key: 'rank', style: css(rank) }, String(index + 1).padStart(2, '0')),
         h('span', { key: 'name', style: css(modelName), title: modelDisplayName(item) }, modelDisplayName(item)),
         h('strong', { key: 'total', style: css(modelValue) }, formatTokens(item.total)),
-        h('span', { key: 'cost', style: css(modelCost) }, formatCost(costByKey.get(`${item.provider}\u0000${item.model}`) ?? 0, preferences.currency)),
+        ...(showCost ? [h('span', { key: 'cost', style: css(modelCost) }, formatCost(costByKey.get(`${item.provider}\u0000${item.model}`) ?? 0, preferences.currency))] : []),
       ]))) : h('div', { key: 'empty', style: css(emptyState) }, modelEmptyText(false)),
     ]),
     h('section', { key: 'trend', style: css(card) }, [
@@ -340,11 +343,11 @@ export function ContextPanel(p: PanelProps) {
         : p.sessionRankingStatus === 'ready' && p.sessionRanking
           ? (p.sessionRanking.sessions.length === 0
               ? h('div', { key: 'empty', style: css(emptyState) }, p.sessionRanking.persisted ? t('sessionsEmpty') : t('sessionsNeedsIndex'))
-              : h('div', { key: 'list', style: css(list) }, p.sessionRanking.sessions.slice(0, 5).map((item, index) => h('div', { key: item.sessionId, style: css(modelRow) }, [
+              : h('div', { key: 'list', style: css(list) }, p.sessionRanking.sessions.slice(0, 5).map((item, index) => h('div', { key: item.sessionId, style: css({ ...modelRow, ...(showCost ? {} : { gridTemplateColumns: '24px minmax(0,1fr) auto' }) }) }, [
                 h('span', { key: 'rank', style: css(rank) }, String(index + 1).padStart(2, '0')),
                 h('span', { key: 'id', style: css(modelName), title: item.sessionId }, t('sessionShortId', { id: shortSessionId(item.sessionId) })),
                 h('strong', { key: 'total', style: css(modelValue) }, formatTokens(item.total)),
-                h('span', { key: 'cost', style: css(modelCost) }, formatCost(costOfTotals(item.totals, resolvePrice(priceTable, '(unknown)')), preferences.currency)),
+                ...(showCost ? [h('span', { key: 'cost', style: css(modelCost) }, formatCost(costOfTotals(item.totals, resolvePrice(priceTable, '(unknown)')), preferences.currency))] : []),
               ]))))
           : h('div', { key: 'state', style: css(emptyState) }, t('loading')),
     ]),
@@ -357,7 +360,7 @@ export function ContextPanel(p: PanelProps) {
       const buckets = modelBuckets.get(`${item.provider}\u0000${item.model}`)
       return h('section', { key: `${item.provider}|${item.model}`, style: css(card) }, [
         h('div', { key: 'heading', style: css(sectionHeading) }, [h('strong', { key: 'name', style: css(fullModelName), title: modelDisplayName(item) }, modelDisplayName(item)), h('span', { key: 'total', style: css(modelValue) }, formatTokens(item.total))]),
-        h('div', { key: 'cost', style: css(modelCostLine) }, `${t('modelCost')} ${formatCost(costByKey.get(`${item.provider}\u0000${item.model}`) ?? 0, preferences.currency)}`),
+        ...(showCost ? [h('div', { key: 'cost', style: css(modelCostLine) }, `${t('modelCost')} ${formatCost(costByKey.get(`${item.provider}\u0000${item.model}`) ?? 0, preferences.currency)}`)] : []),
         buckets ? tokenCells(buckets, language) : h('div', { key: 'note', style: css(note) }, t('noBreakdown')),
       ])
     }) : [h('div', { key: 'empty', style: css(emptyState) }, modelEmptyText(true))]),

@@ -35,6 +35,8 @@ export const settingsMessages = defineMessages({
   volume: { zh: '提示音音量', en: 'Sound volume' },
   budget: { zh: '成本与预算', en: 'Cost & budget' },
   currency: { zh: '显示货币', en: 'Display currency' },
+  costEnable: { zh: '显示成本估算', en: 'Show cost estimates' },
+  costEnableHint: { zh: '关闭后概览、模型页与会话排行不再显示任何成本信息；预算告警同步停用。', en: 'Hides all cost information in Overview, Models and session ranking; the budget alert is disabled too.' },
   budgetEnable: { zh: '启用月预算告警', en: 'Enable monthly budget alert' },
   budgetMonthly: { zh: '月预算（USD）', en: 'Monthly budget (USD)' },
   budgetHint: { zh: '超过预算时宠物会发出预警动作；开启完成提示音时同时发声提醒。', en: 'Over budget, the pet shows a warning action; with completion sound enabled it also chimes.' },

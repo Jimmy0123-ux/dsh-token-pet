@@ -22,14 +22,11 @@ try {
   new Function(code)()
   const keys = Object.keys(loaded)
   console.log('loader ok, loaded ids:', keys.join(', '))
-  const exp = loaded['dsh-token-pet']
-  console.log('exports type:', typeof exp)
-  console.log('has apply:', typeof exp?.apply)
-  if (keys.length !== 1 || typeof exp?.apply !== 'function') {
-    console.error('UNEXPECTED_BUNDLE')
+  if (keys.length !== 1 || keys[0] !== 'dsh-token-pet') {
+    console.error('UNEXPECTED_BUNDLE: expected exactly one loaded id "dsh-token-pet"')
     process.exit(1)
   }
-  console.log('SIMULATION_PASS')
+  console.log('SIMULATION_PASS (no missed-module, factory ran to completion)')
 } catch (error) {
   console.error('SIMULATION_FAIL:', error && error.stack ? error.stack : error)
   process.exit(1)

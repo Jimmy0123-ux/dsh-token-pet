@@ -538,6 +538,10 @@ test('settings normalization clamps values and repairs corrupt fields', () => {
   assert.equal(settings.skinId, 'default')
   assert.equal(settings.lowPerformance, false)
   assert.equal(settings.enhancementEnabled, true)
+  // Cost display is on by default and survives corrupt input; an explicit off sticks.
+  assert.equal(settings.costEnabled, true)
+  assert.equal(normalizeSettings({ costEnabled: 'no' }).costEnabled, true)
+  assert.equal(normalizeSettings({ costEnabled: false }).costEnabled, false)
 })
 
 test('index state machine distinguishes missing, partial, operations, and terminal outcomes', () => {

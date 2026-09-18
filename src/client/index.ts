@@ -696,11 +696,12 @@ function TokenPetWindow() {
     configureCompletionSound({ theme: settings.completionSoundTheme, volume: settings.completionSoundVolume })
   }, [settings.completionSoundTheme, settings.completionSoundVolume])
   // Monthly budget alert: warn once when the estimated monthly cost crosses
-  // the configured budget; reset only after it drops back below.
+  // the configured budget; reset only after it drops back below. The whole
+  // cost feature can be switched off, which also silences this alert.
   const budgetCrossed = useRef(false)
   useEffect(() => {
     const monthly = monthlyCostOfCells(lifetimeLedger.value?.byModelDay ?? [], parsePriceTable(settings.priceTable) ?? DEFAULT_PRICES)
-    const over = settings.budgetEnabled && monthly >= Math.max(0, settings.budgetMonthly)
+    const over = settings.costEnabled === true && settings.budgetEnabled && monthly >= Math.max(0, settings.budgetMonthly)
     if (over && !budgetCrossed.current) {
       budgetCrossed.current = true
       animation.publish({ action: 'warning', dedupeKey: 'budget-warning' })
@@ -708,7 +709,7 @@ function TokenPetWindow() {
     } else if (!over) {
       budgetCrossed.current = false
     }
-  }, [settings.budgetEnabled, settings.budgetMonthly, settings.priceTable, settings.completionSound, lifetimeLedger.value, animation])
+  }, [settings.costEnabled, settings.budgetEnabled, settings.budgetMonthly, settings.priceTable, settings.completionSound, lifetimeLedger.value, animation])
   const previousStage = useRef<string | null>(null)
   const previousPercent = useRef<number | null>(null)
   const previousTurns = useRef<number | null>(null)
