@@ -4,7 +4,7 @@ English · [简体中文](README.md)
 
 A floating pet for **DeepSeek Harness (DSH)** with live runtime status, context usage, a lifetime token ledger, model breakdowns, trends, optional cost estimates, and user-triggered prompt enhancement.
 
-> **Version 0.4.0:** dark/light theme switching, a visual price editor, cost estimates now **off by default** (opt-in), plus fixes for unreadable button labels caused by the host's dark-mode CSS and for the client bundle failing to load when the skin ZIP importer pulled in fflate.
+> **Version 0.4.1:** fixes a settings-merge bug where a partial settings event reset unrelated preferences (theme, cost switch, completion sound). Adds interface screenshots and a rewritten English guide. 0.4.0 brought dark/light theme switching, a visual price editor, cost estimates now **off by default** (opt-in), plus fixes for unreadable button labels caused by the host's dark-mode CSS and for the client bundle failing to load when the skin ZIP importer pulled in fflate.
 
 ## Screenshots
 
@@ -56,8 +56,8 @@ For the published release, open **DSH Settings → Plugin marketplace / Plugin m
 Command line:
 
 ```sh
-dsh plugin --profile desktop add dsh-token-pet@0.4.0
-dsh plugin --profile web add dsh-token-pet@0.4.0
+dsh plugin --profile desktop add dsh-token-pet@0.4.1
+dsh plugin --profile web add dsh-token-pet@0.4.1
 ```
 
 For local development, build the repository and install it as a local plugin (`dsh plugin --profile desktop add link:<absolute path>`). Building this repository alone does not update an already installed plugin. Follow the [Chinese installation and troubleshooting guide](README.md#安装) for profile-specific instructions.

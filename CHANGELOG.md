@@ -2,7 +2,7 @@
 
 All notable changes to this project are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Semantic Versioning](https://semver.org/).
 
-## [Unreleased]
+## [0.4.1] - 2026-09-20
 
 ### Fixed
 
@@ -12,8 +12,9 @@ All notable changes to this project are documented here. The format follows [Kee
 ### Docs
 
 - README 新增**界面截图**章节（深色 / 浅色、总览 / 模型 / 设置、提示词抽屉），截图由真实组件在 Chrome 中渲染生成（示例数据）。
-- README 英文版（`README.en.md`）整体重写并同步至 0.4.0：补齐主题切换、成本估算（默认关闭 + 可视化价格表）、皮肤 ZIP 客户端导入、导出、趋势 7/30 日、会话排行、提示音主题与音量、旧宿主趋势 `unsupported` 边界，并新增截图章节与 `TP_THEME=light` 验收说明。
+- README 英文版（`README.en.md`）整体重写并同步至 0.4.x：补齐主题切换、成本估算（默认关闭 + 可视化价格表）、皮肤 ZIP 客户端导入、导出、趋势 7/30 日、会话排行、提示音主题与音量、旧宿主趋势 `unsupported` 边界，并新增截图章节与 `TP_THEME=light` 验收说明。
 - `screenshots.json`（市场截图清单）更新为界面截图优先。
+- `docs/media` 加入 npm 发布白名单，使 README 截图在 npm 页面同样可显示（避免依赖国内常被拦截的 raw 链接）。
 
 ## [0.4.0] - 2026-09-18
 
@@ -172,7 +173,8 @@ All notable changes to this project are documented here. The format follows [Kee
 - npm package installs with host entry, web client bundle, and `cordis.patch.yml` present.
 - GitHub CI passes on the public `main` branch.
 
-[Unreleased]: https://github.com/Jimmy0123-ux/dsh-token-pet/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/Jimmy0123-ux/dsh-token-pet/compare/v0.4.1...HEAD
+[0.4.1]: https://github.com/Jimmy0123-ux/dsh-token-pet/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/Jimmy0123-ux/dsh-token-pet/compare/v0.3.2...v0.4.0
 [0.3.2]: https://github.com/Jimmy0123-ux/dsh-token-pet/compare/v0.3.1...v0.3.2
 [0.3.1]: https://github.com/Jimmy0123-ux/dsh-token-pet/compare/v0.3.0...v0.3.1
