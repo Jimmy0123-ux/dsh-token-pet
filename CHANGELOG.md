@@ -2,6 +2,19 @@
 
 All notable changes to this project are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Fixed
+
+- **局部设置事件会重置其他偏好**：`useSettings` 收到只包含部分字段的 `SETTINGS_EVENT` 时，原先用 `normalizeSettings(detail)` 处理，会把未包含的偏好（主题、成本显示开关、提示音等）静默重置为默认值。现改为与已持久化设置合并，并补充回归测试。
+- **浅色主题验收截图不正确**：UI fixture 派发局部设置事件导致浅色模式下仍渲染深色面板；随上一条修复后，`TP_THEME=light` 的验收截图现在真正反映浅色主题。
+
+### Docs
+
+- README 新增**界面截图**章节（深色 / 浅色、总览 / 模型 / 设置、提示词抽屉），截图由真实组件在 Chrome 中渲染生成（示例数据）。
+- README 英文版（`README.en.md`）整体重写并同步至 0.4.0：补齐主题切换、成本估算（默认关闭 + 可视化价格表）、皮肤 ZIP 客户端导入、导出、趋势 7/30 日、会话排行、提示音主题与音量、旧宿主趋势 `unsupported` 边界，并新增截图章节与 `TP_THEME=light` 验收说明。
+- `screenshots.json`（市场截图清单）更新为界面截图优先。
+
 ## [0.4.0] - 2026-09-18
 
 > 说明：0.3.0 / 0.3.1 / 0.3.2 的 npm 产物因客户端 bundle 打包问题不可用（已在 npm 上标记 deprecated），

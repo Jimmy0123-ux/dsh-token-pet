@@ -16,6 +16,28 @@ DSH Token Pet 将当前请求、工具调用、上下文压缩、会话归档和
 
 > 本版本新增**深色 / 浅色主题切换**、**可视化价格编辑器**、**成本估算改为默认关闭（可主动开启）**，并修复了客户端按钮文字被宿主深色样式覆盖看不清、以及皮肤 ZIP 导入导致的客户端加载失败。此前版本新增成本估算与月预算、近 7/30 日趋势、会话排行、用量数据导出、皮肤 ZIP 客户端导入与 3 套新配色皮肤、提示音主题与音量、完整中英双语界面与响应式浮窗布局。
 
+## 界面截图
+
+> 截图由插件**真实组件**在 Chrome 中渲染生成（示例数据，不含任何真实会话内容）。
+
+### 深色主题（默认）
+
+![深色主题：宠物与统计浮窗](docs/media/ui-dark-overview.png)
+
+| 总览 | 模型 | 设置 |
+| --- | --- | --- |
+| ![总览面板](docs/media/ui-dark-panel.png) | ![模型页](docs/media/ui-dark-models.png) | ![设置页](docs/media/ui-dark-settings.png) |
+
+提示词增强抽屉：
+
+![提示词增强抽屉](docs/media/ui-dark-prompt.png)
+
+### 浅色主题
+
+| 宠物与浮窗 | 总览 | 设置 |
+| --- | --- | --- |
+| ![浅色浮窗](docs/media/ui-light-overview.png) | ![浅色总览](docs/media/ui-light-panel.png) | ![浅色设置](docs/media/ui-light-settings.png) |
+
 ### 切换主题（深色 / 浅色）
 
 在浮窗 **设置 → 外观 → 界面主题**，或 DSH **设置 → 用量小宠物** 中：

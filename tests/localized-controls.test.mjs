@@ -135,6 +135,21 @@ test('two real settings entry points subscribe together and preserve custom temp
     assert.equal(find(b.render(),'advanced').props.style.minWidth,0)
   } finally { a.unmount(); b.unmount(); restore() }
 })
+test('a partial settings event does not reset unrelated preferences', () => {
+  const restore = environment(), c = host('settings-panel.tsx','TokenPetSettingsPanel')
+  try {
+    settings.saveSettings({ theme: 'light', costEnabled: true, completionSound: true })
+    c.render()
+    assert.equal(find(find(c.render(),'theme'),'select').props.value, 'light')
+    // Another surface broadcasts only the field it changed.
+    window.dispatchEvent(new CustomEvent(settings.SETTINGS_EVENT, { detail: { language: 'en' } }))
+    const tree = c.render()
+    assert.equal(find(find(tree,'theme'),'select').props.value, 'light', 'theme must survive a partial event')
+    assert.equal(find(find(tree,'costEnable'),'input').props.checked, true, 'cost switch must survive a partial event')
+    assert.equal(find(find(tree,'sound'),'input').props.checked, true, 'sound must survive a partial event')
+    assert.match(text(tree), /Language & notifications/, 'the changed field still applies')
+  } finally { c.unmount(); restore() }
+})
 test('prompt pending request, editable preview and errors survive language switches without resend', async () => {
   const restore = environment(); const c = host('prompt-panel.tsx','PromptEnhancerPanel'); let calls = 0, resolve, request
   const props = { initial: '原始 input', adapter: { enhance: req => { calls++; request = req; return new Promise(r => { resolve = r }) } } }

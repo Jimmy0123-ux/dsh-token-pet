@@ -21,7 +21,8 @@
     "README.md",
     "README.en.md",
     "CHANGELOG.md",
-    "LICENSE"
+    "LICENSE",
+    "docs/media"
   ],
   "scripts": {
     "build": "npm run build:host && npm run build:client",

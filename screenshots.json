@@ -1,10 +1,10 @@
 [
+  "docs/media/ui-dark-overview.png",
+  "docs/media/ui-light-overview.png",
+  "docs/media/ui-dark-panel.png",
+  "docs/media/ui-dark-settings.png",
+  "docs/media/ui-light-settings.png",
+  "docs/media/ui-dark-prompt.png",
   "docs/media/actions-overview.webp",
-  "docs/media/action-idle.webp",
-  "docs/media/action-working.webp",
-  "docs/media/action-warning.webp",
-  "docs/media/action-tool-success.webp",
-  "docs/media/action-tool-failure.webp",
-  "docs/media/action-prompt-enhancing.webp",
-  "docs/media/action-prompt-ready.webp"
+  "docs/media/action-idle.webp"
 ]

@@ -8,7 +8,11 @@ export function useSettings(): TokenPetSettings {
     if (typeof window === 'undefined') return
     const update = (event: Event) => {
       const detail = (event as CustomEvent<Partial<TokenPetSettings>>).detail
-      setSettings(detail ? normalizeSettings(detail) : loadSettings())
+      // A detail may legitimately carry only the fields one surface changed.
+      // Merge it over the persisted settings instead of normalizing the partial
+      // object on its own, which would silently reset every other preference
+      // (theme, cost switch, sound, …) back to its default in this view.
+      setSettings(detail ? normalizeSettings({ ...loadSettings(), ...detail }) : loadSettings())
     }
     window.addEventListener(SETTINGS_EVENT, update)
     window.addEventListener('storage', update)
