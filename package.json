@@ -1,6 +1,6 @@
 {
   "name": "dsh-token-pet",
-  "version": "0.3.2",
+  "version": "0.4.0",
   "description": "A bilingual floating pet for DeepSeek Harness with runtime status, context and lifetime token usage, trends, and optional completion sounds.",
   "type": "module",
   "main": "lib/index.js",

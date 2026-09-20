@@ -2,11 +2,31 @@
 
 All notable changes to this project are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Semantic Versioning](https://semver.org/).
 
-## [0.3.2] - 2026-09-18
+## [0.4.0] - 2026-09-18
+
+> 说明：0.3.0 / 0.3.1 / 0.3.2 的 npm 产物因客户端 bundle 打包问题不可用（已在 npm 上标记 deprecated），
+> 本版是 0.3.x 系列**第一个可正常安装使用**的正式版本，包含此前全部功能与修复。
 
 ### Added
 
-- **成本估算显示开关**：设置 → 成本与预算 新增"显示成本估算"开关（默认开）。关闭后概览成本卡片、模型页成本列、Top5 成本列、会话排行成本列全部隐藏，月预算告警同步停用；对不关心价格的用户可一键回归纯用量界面。
+- **深色 / 浅色主题**：设置 → 外观 → 界面主题可切换；统计浮窗、设置面板、提示词抽屉、皮肤面板、趋势维护、浮窗标题栏与状态条统一通过 CSS 变量主题化，切换即时生效，深色为默认。
+- **成本估算默认关闭（改为主动开启）**：设置 → 成本与预算 → 勾选"显示成本估算"后，概览成本卡片、模型页成本列、Top5 成本列、会话排行成本列才会显示，月预算告警同样需要先开启；不关心价格的用户默认保持纯用量界面。
+- **可视化价格编辑器**：设置 → 成本与预算 不再需要手写 JSON；以表格逐行编辑"模型名 / 输入 / 输出 / 缓存读 / 缓存写"，支持添加模型、删除、保存、恢复默认；非法输入红框提示且不写入。
+
+### Fixed
+
+- **客户端按钮文字颜色（重要）**：DSH 的深色模式 CSS 会覆盖按钮 `color`，导致"刷新 / 收起 / ✦增强提示词 / 增强抽屉按钮 / 设置按钮 / 皮肤选择"等文字变黑看不清。现全部按钮改用**显式硬编码的可读颜色**（不依赖 CSS 变量解析）。
+- **浅色主题对比度**：激活态标签与趋势范围按钮由"白字 + 浅紫底"改为 accent 色文字；次级文字与金色数值加深；激活底色提高不透明度。
+- 皮肤 ZIP 导入改用 `fflate/browser`（Node-free 入口）并强制内联，修复 `require("fflate") missed the module table` 导致的客户端加载失败（详见 0.3.2）。
+- 旧宿主 `sessionPersistence` 缺少 `listSnapshots` 时防御性降级，不再高频刷错误日志（详见 0.3.1）。
+
+### Validation
+
+- TypeScript host/client typecheck 通过；`npm test` 212/212 通过；资源审计、构建与打包通过；
+- `client.js` 仅含 `react` / `react-dom` 两个平台 require，无裸第三方依赖；DSH loader 语义模拟加载通过；
+- `scripts/verify-ui-local.mjs` 真实 headless Chrome **双主题**验收通过（深色基线 + `TP_THEME=light` 浅色，500/360/180px × 中英 × 三标签布局无溢出、提示音调度全过）。
+
+## [0.3.2] - 2026-09-18
 
 ### Fixed
 
@@ -139,7 +159,8 @@ All notable changes to this project are documented here. The format follows [Kee
 - npm package installs with host entry, web client bundle, and `cordis.patch.yml` present.
 - GitHub CI passes on the public `main` branch.
 
-[Unreleased]: https://github.com/Jimmy0123-ux/dsh-token-pet/compare/v0.3.2...HEAD
+[Unreleased]: https://github.com/Jimmy0123-ux/dsh-token-pet/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/Jimmy0123-ux/dsh-token-pet/compare/v0.3.2...v0.4.0
 [0.3.2]: https://github.com/Jimmy0123-ux/dsh-token-pet/compare/v0.3.1...v0.3.2
 [0.3.1]: https://github.com/Jimmy0123-ux/dsh-token-pet/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/Jimmy0123-ux/dsh-token-pet/compare/v0.2.0...v0.3.0
