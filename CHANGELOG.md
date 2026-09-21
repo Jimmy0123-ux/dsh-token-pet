@@ -2,6 +2,18 @@
 
 All notable changes to this project are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Semantic Versioning](https://semver.org/).
 
+## [0.4.2] - 2026-09-21
+
+### Fixed
+
+- **面板不再把"已删除会话"报成读取失败**：宿主会继续列出用户已删除或归档的会话，但它们的日志已经不存在，读取时会抛 `SESSION_QUERY_SESSION_NOT_FOUND`（或包裹 `ENOENT` 的持久化失败）。插件原先把它计入失败，于是浮窗长期显示"本次有 N 个会话读取失败，账本保留既有值但本次结果可能暂不完整"。现在这类"日志已不存在"被识别为**预期状态**：保留账本既有值、不再计入失败，提示随之消失。真正的读取异常（磁盘错误等）仍会照常提示。
+- **清理"僵尸 live 标记"**：这一版 DSH 的会话头部不暴露 `revision / updatedAt / eventCount`，插件指纹退化为 `header:[...]`，而该形态被判为"不可靠"，导致凡是宿主报告为 live 的会话**每次刷新都会重新读取**；若某会话之后关闭且指纹未变，它会被"保留"捷径跳过，`live: true` 便永久残留。现在保留路径会同步刷新 `live` 标记，关闭的会话不再被反复重试。
+
+### Validation
+
+- TypeScript host/client typecheck 通过；`npm test` 216/216 通过（新增 3 项回归：日志缺失不计失败、真实异常仍计失败、关闭会话清除 stale live）；
+- 资源审计、构建、DSH loader 语义模拟与真实 headless Chrome 双主题验收通过。
+
 ## [0.4.1] - 2026-09-20
 
 ### Fixed
@@ -173,7 +185,8 @@ All notable changes to this project are documented here. The format follows [Kee
 - npm package installs with host entry, web client bundle, and `cordis.patch.yml` present.
 - GitHub CI passes on the public `main` branch.
 
-[Unreleased]: https://github.com/Jimmy0123-ux/dsh-token-pet/compare/v0.4.1...HEAD
+[Unreleased]: https://github.com/Jimmy0123-ux/dsh-token-pet/compare/v0.4.2...HEAD
+[0.4.2]: https://github.com/Jimmy0123-ux/dsh-token-pet/compare/v0.4.1...v0.4.2
 [0.4.1]: https://github.com/Jimmy0123-ux/dsh-token-pet/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/Jimmy0123-ux/dsh-token-pet/compare/v0.3.2...v0.4.0
 [0.3.2]: https://github.com/Jimmy0123-ux/dsh-token-pet/compare/v0.3.1...v0.3.2

@@ -48,6 +48,60 @@ test('deleted and archived sessions remain in Lifetime Ledger unchanged', async 
   assert.deepEqual(reads, [])
 })
 
+test('a session whose log is gone keeps its values without a reported read failure', async () => {
+  const dir = await sandbox(); const ledger = new FileLifetimeLedger(dir)
+  await ledger.refresh(query([record('s1', 'r1')], { s1: source(7) }))
+
+  // The host still lists the session but its log was deleted/archived away, so
+  // the fingerprint changed and the read fails with the host's NOT_FOUND code.
+  const gone = Object.assign(new Error('session "s1" not found'), { code: 'SESSION_QUERY_SESSION_NOT_FOUND' })
+  const result = await ledger.refresh({
+    async listSessions() { return [record('s1', 'r2')] },
+    async readSession() { throw gone },
+  })
+  assert.equal(result.failed, 0, 'a missing log is not a read failure')
+  assert.equal(result.retained, 1)
+  assert.equal(result.usage.total, 7, 'retained values survive')
+  assert.equal((await ledger.usage()).total, 7)
+
+  // A persistence failure wrapping ENOENT is the same situation.
+  const enoent = Object.assign(new Error('failed to read stored session'), { code: 'SESSION_QUERY_PERSISTENCE_FAILED', cause: Object.assign(new Error('no such file'), { code: 'ENOENT' }) })
+  const second = await ledger.refresh({
+    async listSessions() { return [record('s1', 'r3')] },
+    async readSession() { throw enoent },
+  })
+  assert.equal(second.failed, 0)
+  assert.equal(second.usage.total, 7)
+})
+
+test('genuine read failures are still reported', async () => {
+  const dir = await sandbox(); const ledger = new FileLifetimeLedger(dir)
+  await ledger.refresh(query([record('s1', 'r1')], { s1: source(7) }))
+  const result = await ledger.refresh({
+    async listSessions() { return [record('s1', 'r2')] },
+    async readSession() { throw new Error('disk exploded') },
+  })
+  assert.equal(result.failed, 1, 'an unexpected error must still surface')
+  assert.equal(result.usage.total, 7)
+})
+
+test('a session the host reports as closed drops its stale live flag', async () => {
+  const dir = await sandbox(); const ledger = new FileLifetimeLedger(dir)
+  // A header without revision/eventCount/updatedAt is the unreliable case this
+  // host produces, so a live entry is re-read on every refresh.
+  const records = [{ header: { id: 'live-unreliable', createdAt }, live: true }]
+  const snapshots = { 'live-unreliable': source(4) }
+  await ledger.refresh(query(records, snapshots))
+
+  records[0] = { header: { id: 'live-unreliable', createdAt }, live: false }
+  const reads = []
+  const closed = await ledger.refresh(query(records, snapshots, reads))
+  assert.deepEqual(reads, [], 'a closed session with an unchanged fingerprint is retained')
+  assert.equal(closed.usage.total, 4)
+  const stored = JSON.parse(await readFile(join(dir, 'lifetime-ledger.json'), 'utf8'))
+  assert.equal(stored.sessions['live-unreliable'].live, false, 'the stale live flag is cleared')
+})
+
 test('snapshot usage remains readable while a writer owns the ledger lock', async () => {
   const dir = await sandbox(); const ledger = new FileLifetimeLedger(dir)
   await ledger.refresh(query([record('s1', 'r1')], { s1: source(7) }))

@@ -95,6 +95,21 @@ function liveFingerprintReliable(header: { revision?: unknown; updatedAt?: unkno
     ((typeof header.revision === 'string' && !header.revision.startsWith('header:')) || typeof header.revision === 'number')
 }
 
+/**
+ * The host can keep listing a session whose log is already gone — the user
+ * deleted or archived the conversation away. That is an expected state, not a
+ * read failure: the ledger keeps the retained values and stays quiet. The host
+ * reports it either as `SESSION_QUERY_SESSION_NOT_FOUND` or as a persistence
+ * failure wrapping an `ENOENT` cause.
+ */
+function isMissingSession(error: unknown): boolean {
+  if (!error || typeof error !== 'object') return false
+  const candidate = error as { code?: unknown; cause?: unknown }
+  if (candidate.code === 'SESSION_QUERY_SESSION_NOT_FOUND' || candidate.code === 'ENOENT') return true
+  const cause = candidate.cause
+  return Boolean(cause && typeof cause === 'object' && (cause as { code?: unknown }).code === 'ENOENT')
+}
+
 /** Merge a newer observation without allowing any model/day token bucket to decrease. */
 function mergeMaxCells(previous: readonly ModelDayTotals[], current: readonly ModelDayTotals[]): ModelDayTotals[] {
   const merged = new Map<string, ModelDayTotals>()
@@ -153,13 +168,20 @@ export class FileLifetimeLedger {
   async refresh(sessionQuery: SessionQueryService, signal?: AbortSignal, usageIndex?: FileSessionUsageIndex): Promise<LifetimeRefreshResult> {
     return this.withLock(async () => {
       signal?.throwIfAborted(); const state = await this.load(); const records = await sessionQuery.listSessions(signal)
-      let updated = 0; let retained = 0; let failed = 0
+      let updated = 0; let retained = 0; let failed = 0; let relabeled = 0
       for (const record of records) {
         signal?.throwIfAborted(); const id = record.header.id; const fp = sessionFingerprint(record); const prior = state.sessions[id]
+        const live = Boolean(record.live)
         // Closed logs are immutable. Live logs are also safe to retain when the
         // host exposes a changing header fingerprint; reopening the panel must
         // not decompress every unchanged live transcript again.
-        if (prior && sameFingerprint(prior.fingerprint, fp) && (!record.live || liveFingerprintReliable(record.header))) { retained++; continue }
+        if (prior && sameFingerprint(prior.fingerprint, fp) && (!record.live || liveFingerprintReliable(record.header))) {
+          // A session the host now reports as closed must drop its recorded live
+          // flag. Hosts without a reliable live fingerprint would otherwise
+          // re-read it on every refresh forever. Only the flag changes here.
+          if (prior.live !== live) { state.sessions[id] = { ...prior, live }; relabeled++ }
+          retained++; continue
+        }
         try {
           let observed: ModelDayTotals[] | undefined
           if (!record.live && usageIndex) observed = await usageIndex.lookup(id, fp)
@@ -170,10 +192,15 @@ export class FileLifetimeLedger {
           }
           const monotonicObserved = mergeMaxCells(prior?.observed ?? [], observed)
           const credited = mergeMaxCells(prior?.credited ?? [], afterFloor(monotonicObserved, state.floors[id] ?? []))
-          state.sessions[id] = { fingerprint: fp, live: Boolean(record.live), observed: monotonicObserved, credited, updatedAt: Date.now() }; updated++
-        } catch { failed++; retained++ }
+          state.sessions[id] = { fingerprint: fp, live, observed: monotonicObserved, credited, updatedAt: Date.now() }; updated++
+        } catch (error) {
+          retained++
+          // A deleted/archived session whose log is gone keeps its retained
+          // values without being reported as a failed read.
+          if (!isMissingSession(error)) failed++
+        }
       }
-      if (updated > 0) await this.persist(state)
+      if (updated > 0 || relabeled > 0) await this.persist(state)
       const collected = this.collect(state.sessions)
       return { usage: summarizeUsageCells(collected.cells, collected.sessions), listed: records.length, updated, retained, failed }
     })
